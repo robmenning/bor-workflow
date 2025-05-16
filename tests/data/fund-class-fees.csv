@@ -1,0 +1,55 @@
+fund_code,fund_name,class,description,mer,trailer,performance_fee,min_investment_initial,min_investment_subsequent,currency
+PGF 1100,Pender Partners Fund,A,Front End,2.47,1.00,,25000,10000,CAD
+PGF 1113,Pender Partners Fund,F2,Fee Based,1.41,,,25000,10000,CAD
+PGF 1150,Pender Partners Fund,I,Fee Based - HNW,1.25,,,100000,10000,CAD
+PGF 315,Pender Small Cap Opportunities Fund,A,Front End,2.63,1.00,,Closed,Closed,CAD
+PGF 320,Pender Small Cap Opportunities Fund,F,Fee Based,1.59,,,Closed,Closed,CAD
+PGF 342,Pender Small Cap Opportunities Fund,H,Front End - HNW,2.27,0.85,,Closed,Closed,CAD
+PGF 380,Pender Small Cap Opportunities Fund,B,Front End,2.65,1.00,20% / S&P/TSX,5000,100,CAD
+PGF 390,Pender Small Cap Opportunities Fund,G,Fee Based,1.57,,20% / S&P/TSX,5000,100,CAD
+PGF 200,Pender Value Fund,A,Front End,2.51,1.00,,5000,100,CAD
+PGF 210,Pender Value Fund,F,Fee Based,1.45,,,5000,100,CAD
+PGF 240,Pender Value Fund,H,Front End - HNW,2.21,0.85,,100000,100,CAD
+PGF 250,Pender Value Fund,I,Fee Based - HNW,1.31,,,100000,100,CAD
+PGF 1800,Pender US Small/Mid Cap Equity Fund,A,Front End,0.00,1.00,,5000,100,CAD
+PGF 1810,Pender US Small/Mid Cap Equity Fund,F,Fee Based,0.00,,,5000,100,CAD
+PGF 1000,Pender Strategic Growth and Income Fund,A,Front End,2.34,1.00,,5000,100,CAD
+PGF 1010,Pender Strategic Growth and Income Fund,F,Fee Based,1.28,,,5000,100,CAD
+PGF 1040,Pender Strategic Growth and Income Fund,H,Front End - HNW,2.01,0.85,,100000,100,CAD
+PGF 1050,Pender Strategic Growth and Income Fund,I,Fee Based - HNW,1.11,,,100000,100,CAD
+PGF 500,Pender Corporate Bond Fund,A,Front End,2.07,0.80,,5000,100,CAD
+PGF 501,Pender Corporate Bond Fund,A (USD),Front End,2.05,0.80,,5000,100,USD
+PGF 510,Pender Corporate Bond Fund,F,Fee Based,1.19,,,5000,100,CAD
+PGF 511,Pender Corporate Bond Fund,F (USD),Fee Based,1.19,,,5000,100,USD
+PGF 518,Pender Corporate Bond Fund,U,Fee Based,1.16,,,5000,100,CAD
+PGF 540,Pender Corporate Bond Fund,H,Front End - HNW,1.73,0.65,,100000,100,CAD
+PGF 541,Pender Corporate Bond Fund,H (USD),Front End - HNW,1.75,0.65,,100000,100,USD
+PGF 550,Pender Corporate Bond Fund,I,Fee Based - HNW,1.03,,,100000,100,CAD
+PGF 551,Pender Corporate Bond Fund,I (USD),Fee Based - HNW,1.04,,,100000,100,USD
+PGF 1400,Pender Bond Universe Fund,A,Front End,1.18,0.35,,5000,100,CAD
+PGF 1410,Pender Bond Universe Fund,F,Fee Based,0.64,,,5000,100,CAD
+PGF 1411,Pender Bond Universe Fund,F (USD),Fee Based,0.67,,,5000,100,USD
+PGF 2000,Pender Alternative Absolute Return Fund,A,Front End,2.51,1.00,15% / 3% hurdle,5000,100,CAD
+PGF 2001,Pender Alternative Absolute Return Fund,A (USD),Front End,2.58,1.00,15% / 3% hurdle,5000,100,USD
+PGF 2010,Pender Alternative Absolute Return Fund,F,Fee Based,1.41,,15% / 3% hurdle,5000,100,CAD
+PGF 2011,Pender Alternative Absolute Return Fund,F (USD),Fee Based,1.40,,15% / 3% hurdle,5000,100,USD
+PGF 2040,Pender Alternative Absolute Return Fund,H,Front End - HNW,2.21,0.85,15% / 3% hurdle,100000,100,CAD
+PGF 2041,Pender Alternative Absolute Return Fund,H (USD),Front End - HNW,2.10,0.85,15% / 3% hurdle,100000,100,USD
+PGF 2050,Pender Alternative Absolute Return Fund,I,Fee Based - HNW,1.24,,15% / 3% hurdle,100000,100,CAD
+PGF 2051,Pender Alternative Absolute Return Fund,I (USD),Fee Based - HNW,1.22,,15% / 3% hurdle,100000,100,USD
+PGF 2100,Pender Alternative Arbitrage Fund,A,Front End,2.49,1.00,15% HWM,5000,100,CAD
+PGF 2110,Pender Alternative Arbitrage Fund,F,Fee Based,1.45,,15% HWM,5000,100,CAD
+PGF 2111,Pender Alternative Arbitrage Fund,F (USD),Fee Based,1.42,,15% HWM,5000,100,USD
+PGF 2140,Pender Alternative Arbitrage Fund,H,Front End - HNW,2.11,0.85,15% HWM,100000,100,CAD
+PGF 2150,Pender Alternative Arbitrage Fund,I,Fee Based - HNW,1.25,,15% HWM,100000,100,CAD
+PGF 2151,Pender Alternative Arbitrage Fund,I (USD),Fee Based - HNW,1.32,,15% HWM,100000,100,USD
+PGF 2200,Pender Alternative Arbitrage Plus Fund,A,Front End,2.49,1.00,15% HWM,5000,100,CAD
+PGF 2210,Pender Alternative Arbitrage Plus Fund,F,Fee Based,1.39,,15% HWM,5000,100,CAD
+PGF 2211,Pender Alternative Arbitrage Plus Fund,F (USD),Fee Based,1.36,,15% HWM,5000,100,USD
+PGF 2250,Pender Alternative Arbitrage Plus Fund,I,Fee Based - HNW,1.21,,15% HWM,100000,100,CAD
+PGF 1200,Pender Alternative Multi-Strategy Income Fund,A,Front End,2.52,1.00,15% / 3% hurdle,5000,100,CAD
+PGF 1210,Pender Alternative Multi-Strategy Income Fund,F,Fee Based,1.41,,15% / 3% hurdle,5000,100,CAD
+PGF 1250,Pender Alternative Multi-Strategy Income Fund,I,Fee Based - HNW,1.22,,15% / 3% hurdle,100000,100,CAD
+PGF 1500,Pender Alternative Special Situations Fund,A,Front End,0.00,1.00,15% / 6% hurdle,5000,100,CAD
+PGF 1510,Pender Alternative Special Situations Fund,F,Fee Based,0.00,,15% / 6% hurdle,5000,100,CAD
+PGF 1550,Pender Alternative Special Situations Fund,I,Fee Based - HNW,0.00,,15% / 6% hurdle,100000,100,CAD 

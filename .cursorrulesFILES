@@ -1,0 +1,272 @@
+todo:
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+This project will create a file storage container for use with the bor project, most specifically the bor-workflow and bor-etl containers. 
+The storage container will be accessible from outside its docker container by ftp and over the docker network from the bor-* containers. 
+A top requirement is that this is a light and simple to admin implementation of an ftp server, file organization and storage container.
+The context is an early stage project that has a next.js web application, a node express api, a mysql 8 database, a workflow service, and an etl service. All are running in separate processes in separate docker containers. 
+
+This service will be used initially in the following business case: a file is ftpd by an external system into the storage container; the workflow service will read the file and use the information to determine the next step in the workflow, which is to run the etl service; the etl service 
+will load the data into staging tables in the mysql 8 docker container database bor-db for further processing. 
+
+The files in this container must be accessable to the mysql 8 process in the bor-db container on the bor-network docker network. 
+
+The MySQL user must have the FILE privilege in this container.  
+This bor-files container should mount the directory containing the files to a location that's accessible to the MySQL server in bor-db.
+The MySQL server needs appropriate permissions to read the files
+The file path in p_FilePath should be relative to the MySQL server's file system
+
+
+A simple and flexible implementation is required with transparency into the file storage and organization and easyly managet 
+FTP accounts and permissions.
+
+The service will run in peroduction in a docker container called bor-files
+System port scheme:
+container      dev   stage prod  docker-internal
+-----------------------------------------------
+bor-app        4400  4500  4600  3000
+bor-api        4410  4510  4610  4000
+bor-db         4420  4520  4620  3306
+bof-message    4430  4530  4630  9092
+bor-workflow   4440  4540  4640  4200
+bor-etl        4450  4550  4650  8888
+bor-svc-calc   4460  4560  4660  5000
+bor-files      4470  4570  4670  21 ** this container/service
+
+Technology, general:
+- This project will create a linux ftp server and local file storage container for the bor-network docker network. 
+- A docker network called 'bor-network' is used for interserice communication between this and other docker containers in the system.
+- the project will use modern, best practices, and industry standard technologies for web application architecture and development.
+- The service will mount a persistent volume to store the files which can also be mounted by other bor-* services connected to the bor-network.
+- Configure network access for both external FTP and internal container communication
+- Use a common docker image delfer/alpine-ftp-server, which implements a small and flexible docker image with vsftpd server and FTPS TLS support.
+- use a user and group to manage the ftp accounts and permissions
+- use a docker volume to store the ftp user and group data
+- use a docker volume to store the ftp server logs
+- use a docker volume to store the ftp server configuration files
+
+## user state
+
+Current Implementation:
+- User credentials are stored in a persistent Docker volume (bor-files-users)
+- User database is stored in /etc/vsftpd/users/virtual_users.txt within the container
+- Default user is 'ftpetl' with password from FTP_ETL_PASS
+- User information persists across container restarts
+- User management is handled through manage-users.sh script
+- Each user gets a standardized directory structure under /home/vsftpd/<username>/
+
+Limitations:
+- Passwords are stored in plain text (can be improved with encryption)
+- No user quota enforcement
+- No user session management
+- No user activity logging
+
+Recommended Improvements:
+1. Security improvements:
+   - Encrypt stored passwords
+   - Implement proper user authentication
+   - Add user access controls
+   - Add user activity logging
+
+2. User management features:
+   - Add user quotas
+   - Add session management
+   - Add user activity logging
+   - Add user access controls
+
+Current User Storage:
+- User database: /etc/vsftpd/users/virtual_users.txt (mounted from bor-files-users volume)
+- User directories: /home/vsftpd/<username>/ (mounted from bor-files-data volume)
+- Logs: /var/log/vsftpd/ (mounted from bor-files-logs volume)
+
+Volume Information:
+- bor-files-data: Stores FTP files and user directories
+  - Host location: /var/lib/docker/volumes/bor-files-data/_data
+  - Container mount: /home/vsftpd
+  - Shared with: bor-workflow, bor-db containers
+
+- bor-files-users: Stores user database
+  - Host location: /var/lib/docker/volumes/bor-files-users/_data
+  - Container mount: /etc/vsftpd/users
+  - Access: FTP container only
+
+- bor-files-logs: Stores FTP server logs
+  - Host location: /var/lib/docker/volumes/bor-files-logs/_data
+  - Container mount: /var/log/vsftpd
+  - Access: FTP container only
+
+User Directory Structure:
+/home/vsftpd/<username>/
+├── incoming/    # New files uploaded here
+├── processed/   # Files after processing
+└── archive/     # Archived files
+
+Permissions:
+- Directories: 770 (drwxrwx---)
+- Files: 660 (-rw-rw----)
+- Owner: ftp
+- Group: mysql
+
+## technical details 
+This project will be developed to a high standard of quality but will favour simplicity over sophistication in design and implementation.
+Advice and input from AI will be given as an expert professional using industry best practices for the technologies used. 
+All secrets will be stored in .env files using standard techniques for the technologies used. .env files will follow this naming convention:
+- .env
+- .env.local
+
+## technologies used
+- Typescript
+- vsftpd (a lightweight FTP server) in a Docker container
+- Docker without docker compose
+- Git
+- Github and github actions for CI/CD to production
+
+
+## developer details
+You are a senior, experiences full stack system architect, designer and developer with years of production code in the above listed technologies. 
+You have experience in data-centric environments including data management, etl, data validation, data processing. 
+You follow industry best practices. 
+You take pride in the quality of your work. 
+You are technically competent but prefer simple implementations. 
+You carefully consider tradeoffs to be made during design decisions. 
+
+
+#### Usage
+# ftp a file from a local machine to the bor-file container on the same machine
+
+# ftp a file from a local machine to the bor-file container on a different machine
+
+# use a file in this bor-file container by another container (e.g. bor-db) over the docker network (not FTP)
+
+### Monitoring
+
+The monitoring system is implemented through `monitor.sh` which provides comprehensive monitoring capabilities for the FTP server:
+
+#### Available Commands
+- `status` - Shows container health, resource usage, and running status
+- `connections` - Displays active FTP connections, listening ports, and server process status
+- `disk` - Reports volume usage, directory sizes, and storage metrics
+- `logs` - Shows recent FTP server logs
+- `users` - Displays user permissions and quota information
+- `all` - Runs all monitoring checks
+
+#### Key Features
+- Container health monitoring
+- Resource usage tracking
+- Active connection monitoring
+- Disk space and volume management
+- Log file inspection
+- User permission verification
+- Quota monitoring
+
+## User Management
+
+The user management system is implemented through `manage-users.sh` which provides comprehensive user administration capabilities:
+
+#### Available Commands
+- `list` - Lists all FTP users and their directories
+- `add username password` - Creates a new FTP user with specified credentials
+- `delete username` - Removes an FTP user and their directories
+- `modify username [options]` - Updates user settings
+- `info username` - Displays detailed user information
+
+#### Key Features
+- Username validation (3-32 chars, alphanumeric with underscores/hyphens)
+- Password validation (minimum 8 characters)
+- Automatic directory structure creation (incoming/processed/archive)
+- Permission management (default 755)
+- Quota management
+- User information display including:
+  - Directory structure
+  - Permissions
+  - Quota status
+  - Login history
+
+#### Directory Structure
+Each user gets a standardized directory structure under `/home/vsftpd/<username>/`:
+
+## Testing
+
+The testing system is implemented through `test-integration.sh` which provides comprehensive integration testing capabilities:
+
+#### Test Categories
+- Basic Connectivity (FTP server reachability)
+- Authentication (login functionality)
+- File Operations (upload/download)
+- Directory Operations (create/list)
+- Permission Verification
+- Passive Mode Support
+- Large File Handling
+- Concurrent Transfer Testing
+- Container Network Access
+- File Processing Workflow
+- Archive Functionality
+- Quota Management
+
+#### Key Features
+- Environment-aware testing (dev/stage/prod)
+- Automated test execution
+- Comprehensive test coverage
+- Detailed test reporting
+- Automatic cleanup
+- Container health verification
+- Cross-container communication testing
+
+#### Test Requirements
+- Docker
+- curl
+- netcat (nc)
+- ftp client
+
+#### Test Environment
+- Supports multiple environments (dev/stage/prod)
+- Configurable ports per environment
+- Environment-specific credentials
+- Automatic test file generation
+- Clean test environment management
+
+
+## RBAC considerations
+tbd
+
+
+
+
+## deployment 
+The project will be deployed using standard Docker techniques, but not using Docker Compose which is not supported in some target environments.
+The project will be deployed using a CI/CD pipeline to a target environment.
+ # to ensure prod has all of the .env files, some of which are .gitignored 
+scp bor-files/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-files/
+
+# DEV ITERATIONS
+DEV:
+1. 
+
+PROD:
+3. 
+
+
+## running and monitoring in different environments:
+
+
+### Development Scripts
+
+
+### Docker Container Scripts
+
+
+
+
+
+## sample vsftpd.conf file:
+listen=YES
+anonymous_enable=YES
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+anon_other_write_enable=YES
+anon_root=/var/ftp/pub
+no_anon_password=YES
+pasv_enable=YES
+pasv_min_port=21100
+pasv_max_port=21110

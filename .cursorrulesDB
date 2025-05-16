@@ -1,0 +1,298 @@
+## doto 
+-- add tables for fund* and series* for pooled level data
+-- PortTran.SimId smallint UNSIGNED, -- simulation id: todo: create sim-related tables
+-- add tables for tax lot related data
+
+
+## context
+This project/repository is one of several that together make up the "bor" (for Book of Record) system.
+See the repository 'bor-app' .cursorrules for the overall application context and requirements.
+
+This project creates MYSQL 8 databases for an application called "bor" (for Book of Record).
+
+## technical overview
+This project will create two (or more) MYSQL 8 databases on a single instance (or Docker container). 
+The database creation for each database will involve running a series of SQL scripts to 
+- create the database
+- create the schema
+- create the users
+- create the permissions
+- create the tables
+- create the procedures, functions, triggers, views, etc.
+- load initial data 
+A docker network called 'bor-network' will be created to allow the containers to communicate with each other.
+
+
+The project will have scripts in the ./script/init directory for the above mentioned database DDL and DML commands and scripts in ./script/ 
+for starting, monitoring, and stopping the Docker containers, as well as for backing up the databases.
+
+
+- * consider caching layer between API and database. 
+- * consider ProxySQL between API and database can provide caching, connection pooling, and query routing
+
+## databases created
+
+- bor
+   . application database
+   . responsible for storing information about the system's applications, clients, users, roles, permissions. 
+   . prisma tables in 'bor' database for RBAC: 
+      ..PrismaUser
+      ..Account
+      ..Session
+      ..VerificationToken
+      ..Role
+      ..Permission
+      ..UserRole
+      ..RolePermission
+      ..AuthActivity
+- borinst
+   . responsible for investment related data for the investment management modules
+- borarch
+   . raw data for ETL
+   . archived (high avail latentcy) data
+- bormeta
+   . metadata for bor-workflow (jobs, queue, status, result)
+   . validation data
+   . data process rule data (similar to ETL) for bor-etl
+   . consider integrating with rules engine for data validation and portfolio compliance checking 
+
+- * consider caching layer between API and database. 
+- * consider ProxySQL between API and database can provide caching, connection pooling, and query routing
+
+## implementation of docker volumes
+The MySQL database uses a file-per-table approach with InnoDB for optimal performance and data isolation. We've implemented a structure with separate volumes for data and tablespaces:
+
+1. A primary Docker volume (`bor-volume`) is mounted to `/var/lib/mysql` containing all MySQL system tables and database directories
+2. A secondary Docker volume (`bor-tablespaces`) is mounted to `/tablespaces` containing all tablespace files
+3. Each database uses a dedicated tablespace (`ts_bor`, `ts_borinst`, `ts_borarch`, `ts_bormeta`)
+4. Each table has its own `.ibd` file within the database directory structure
+
+This approach offers several advantages:
+- Physical separation of data files for better I/O isolation
+- Ability to back up database files and tablespaces independently
+- Flexibility in implementing different backup strategies per database
+- Efficient storage utilization and performance
+
+### Data Storage Structure
+```
+/var/lib/mysql/           # Main data directory (bor-volume)
+├── bor/                  # bor database directory
+│   ├── Account.ibd       # Each table has its own file
+│   ├── AuthActivity.ibd
+│   ├── Permission.ibd
+│   └── ...
+├── borinst/              # borinst database directory
+│   ├── Instrument.ibd
+│   └── Portfolio.ibd
+├── borarch/              # borarch database directory
+│   ├── HistoricalData.ibd
+│   └── RawData.ibd
+└── bormeta/              # bormeta database directory
+    ├── ETLJob.ibd
+    └── ValidationRule.ibd
+
+/tablespaces/             # Tablespace directory (bor-tablespaces)
+├── bor.ibd               # bor tablespace file
+├── borinst.ibd           # borinst tablespace file
+├── borarch.ibd           # borarch tablespace file
+└── bormeta.ibd           # bormeta tablespace file
+```
+
+### Backing Up Individual Databases
+You can back up databases at the file level in multiple ways:
+
+#### 1. Using file-based backup scripts
+```bash
+# Stop the container for consistent backups
+docker stop bor-db
+
+# Back up a specific database directory 
+docker run --rm -v bor-volume:/source -v $(pwd)/backups:/backup \
+  alpine sh -c "tar -czf /backup/bor_$(date +%Y%m%d_%H%M%S).tar.gz -C /source/bor ."
+
+# Back up tablespaces
+docker run --rm -v bor-tablespaces:/source -v $(pwd)/backups:/backup \
+  alpine sh -c "tar -czf /backup/tablespaces_$(date +%Y%m%d_%H%M%S).tar.gz -C /source ."
+
+# Restart the container
+docker start bor-db
+```
+
+#### 2. Using logical backups with mysqldump
+We've created separate backup scripts for each database:
+```bash
+# Backup bor database
+./script/backup-bor.sh
+
+# Backup borinst database
+./script/backup-borinst.sh
+
+# Backup borarch database
+./script/backup-borarch.sh
+
+# Backup bormeta database
+./script/backup-bormeta.sh
+```
+
+### Verifying Data Storage
+To check how data is stored and ensure proper isolation:
+
+```bash
+# List all database .ibd files to see physical separation
+docker exec bor-db find /var/lib/mysql -name "*.ibd" | grep -v "#" | sort
+
+# Check tablespace files
+docker exec bor-db ls -la /tablespaces/
+
+# Check table storage details 
+docker exec bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} \
+  -e "SELECT s.name as tablespace_name, count(t.name) as table_count FROM information_schema.INNODB_TABLESPACES s LEFT JOIN information_schema.INNODB_TABLES t ON s.space = t.space GROUP BY s.name;"
+
+# Verify InnoDB file-per-table setting is enabled
+docker exec bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW VARIABLES LIKE 'innodb_file_per_table';"
+```
+
+### Database Restoration Options
+The file-per-table approach gives us flexibility in restoration:
+
+1. **Full restoration**: Restore the entire `bor-volume` for a complete recovery
+2. **Database-level restoration**: Restore individual database directories 
+3. **Table-level restoration**: Restore specific .ibd files (requires additional steps for InnoDB import)
+4. **Logical restoration**: Use the standard MySQL import process:
+   ```bash
+   docker exec -i bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} bor < ./script/backups/bor/bor_TIMESTAMP.sql
+   ```
+
+### Comprehensive Database Verification
+Use the included verification scripts to check all aspects of the database setup:
+```bash
+# Check general database configuration and data
+./script/check-db.sh
+
+# Check tablespace configuration and storage details
+./script/check-tablespaces.sh
+```
+
+The mysql instance created in the bor-db docker container hosts the following databases: bor, borinst, borarch, and bormeta, each with its own tables and storage files.
+
+## testing 
+# DEV ITERATION LOOP
+clear && ./script/db-stop.sh && ./script/db-start.sh --env development && docker ps && docker logs bor-db 
+clear && ./script/db-stop.sh && ./script/db-start.sh --resetall --env development && docker ps && docker logs bor-db #### be careful with --resetall as it will destroy all data
+clear && ./script/db-stop.sh && ./script/db-start.sh --env development && docker ps && docker logs bor-db
+
+#  PROD ITERATION LOOP
+clear && ./script/db-stop.sh && ./script/db-start.sh --env production && docker ps && docker logs bor-db
+
+
+
+# check db contents after creation
+docker exec bor-db mysql -u borAdmin -pAye3aBYrXF -e "USE bor; SELECT COUNT(*) FROM Role;"
+
+# check separate volumes (should see innoDB files):
+docker exec -it bor-db bash -c "ls -la /var/lib/mysql-bor /var/lib/mysql-borinst /var/lib/mysql-borarch /var/lib/mysql-bormeta"
+
+# verfiy database creation:
+docker exec -it bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW VARIABLES LIKE 'innodb_file_per_table'"
+docker exec -it bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SELECT table_schema, table_name, data_free FROM information_schema.tables WHERE table_schema IN ('bor', 'borinst', 'borarch', 'bormeta')"
+
+# check if we can connect with the root password:
+docker exec -it bor-db mysql -u root -pCA4DYCpM8T -e "SHOW DATABASES;"
+
+# check if the users were created:
+docker exec -it bor-db mysql -u root -pCA4DYCpM8T -e "SELECT User, Host FROM mysql.user;"
+
+
+# verify the users work by trying to connect with one of them
+docker exec -it bor-db mysql -u borAdmin -pAye3aBYrXF -e "SHOW DATABASES;"
+
+# check if the tables were created
+docker exec -it bor-db mysql -u borAdmin -pAye3aBYrXF -e "USE bor; SHOW TABLES;"
+
+# check where the data is stored
+docker exec -it bor-db ls -la /var/lib/mysql-bor/ /var/lib/mysql-borinst/ /var/lib/mysql-borarch/ /var/lib/mysql-bormeta/
+
+# check where the database files actually are
+docker exec -it bor-db mysql -u root -pCA4DYCpM8T -e "SELECT table_schema, table_name, engine, data_free, index_length, data_length FROM information_schema.tables WHERE table_schema IN ('bor', 'borinst', 'borarch', 'bormeta') LIMIT 5;"
+
+# check the actual location of data files
+docker exec -it bor-db find /var/lib/mysql -name "*.ibd" | head -5
+
+# Run initialization scripts separately in container (for debugging)
+# Note: Replace CA4DYCpM8T with your actual root password from environment variables
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/0.setup-dirs.sh
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/1.ddl-create-db.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/2.create-tablespaces.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/3.ddl-bor-tables.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/4.dml-prisma-seed.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/5.ddl-borinst-tables.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/6.dml-borinst-init.sql
+docker exec -i bor-db mysql -u root -pCA4DYCpM8T < script/init/7.procs-port.sql
+
+
+
+## deployment 
+The project will be deployed using standard Docker techniques, but not using Docker Compose which is not supported in some target environments.
+The project will be deployed using a CI/CD pipeline to a target environment.
+The deployment to a bare-metal MySQL 8 instance and to the target Docker container will use the same set of database DDL and DML scripts and configuration files.
+
+# to set up a user with all roles:
+docker exec -it bor-db mysql -u borAllAdmin -pkBu9pjz2vi -e "insert into UserRole (id, userId, roleId) select concat(r.id, ':', pu.id) as id, pu.id as userId, r.id as roleId from PrismaUser pu join Role r on 1=1 where pu.email = 'robmenning@gmail.com';"
+or
+docker exec -it bor-db mysql -u borAllSvc -pu67nyNgomZ -e "insert into UserRole (id, userId, roleId) select concat(r.id, ':', pu.id) as id, pu.id as userId, r.id as roleId from PrismaUser pu join Role r on 1=1 where pu.email = 'robmenning@gmail.com';"
+
+
+## MySQL Database Container Technical Summary for API Integration
+
+### Container Details
+- **Container Name**: `bor-db`
+- **Image**: `mysql:8.0`
+- **Network**: Connected to `bor-network` (custom Docker network)
+- **Port Mapping**: Host port `${DB_PORT:-3310}` mapped to container port `3306`
+- **Volume**: Uses `bor-volume` for persistent data storage
+
+### Database Configuration
+- **Authentication**: Uses MySQL native password authentication
+- **Character Set**: `utf8mb4` with `utf8mb4_unicode_ci` collation
+- **Binary Logging**: Enabled with `log-bin-trust-function-creators=1`
+- **Custom Config**: Mounted from `./script/config/my.cnf`
+
+### Databases
+1. **bor**: Primary application database
+   - Contains application configuration, user management, and authentication tables
+   - Admin user: `borAdmin` with password from environment variables
+
+2. **borinst**: Investment management database
+   - Contains financial data, portfolios, instruments, transactions
+   - Admin user: `borinstAdmin` with password from environment variables
+
+### API Connection Details
+- **Connection String**: When connecting from another container on the same network:
+  - Host: `bor-db` (container name as hostname)
+  - Port: `3306` (MySQL default port)
+  - No need to use the mapped port when connecting within the Docker network
+
+### Authentication Options
+- **Application User**: `borAdmin` for the `bor` database
+- **Investment User**: `borinstAdmin` for the `borinst` database
+- **Root User**: Available with password from `MYSQL_ROOT_PASSWORD` environment variable
+
+### Schema Features
+- **Stored Procedures**: Comprehensive CRUD operations with error handling
+- **Triggers**: Used for history tracking and data validation
+- **Foreign Keys**: Extensive relational integrity constraints
+- **Transactions**: All procedures use transactions for data integrity
+
+### Network Considerations
+- Use the container name `bor-db` as the hostname in your connection string
+- Ensure your API container is also connected to the `bor-network`
+- Example connection in Node.js:
+  ```javascript
+  const connection = mysql.createConnection({
+    host: 'bor-db',
+    port: 3306,
+    user: 'borAdmin',
+    password: process.env.BOR_DB_PASSWORD,
+    database: 'bor'
+  });
+  ```

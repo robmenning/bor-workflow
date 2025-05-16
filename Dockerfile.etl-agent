@@ -1,0 +1,4 @@
+FROM prefecthq/prefect:3-latest
+
+RUN apt-get update && apt-get install -y default-mysql-client && \
+    pip install pandas mysql-connector-python python-dotenv 
