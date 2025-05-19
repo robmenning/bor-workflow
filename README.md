@@ -1,2 +1,2 @@
 # bor-workflow
-workflow orchestration servide
+workflow orchestration service
