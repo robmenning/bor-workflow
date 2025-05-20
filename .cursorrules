@@ -1,0 +1,240 @@
+This project will create a workflow managment service implemented with the Prefect orchestration engine (https://docs.prefect.io/v3/get-started). 
+A top requirement is that this is a light and simple to admin implementation of Prefect.
+The context is an early stage project that has a next.js web application, a node express api, a mysql 8 database, an asynchronous pub/sub messaging service, an etl service, a filestore and ftp service, and this workflow service. All are running in separate processes in separate docker containers and are connected by a docker network called bor-network. 
+This service will be used initially in the following business case: a simple ETL ingestion will: 
+1. take a file from a local directory
+2. FTP it to the bor-files container
+3. execute the mysqlimport client program is to ingest the file into a staging table in the 'borarch' database called 'FundClassFee'
+4. execute the stored procedure then validates the data and loads it into a borinst database table. 
+A simple and flexible implementation is required because the team has minimal experience with Prefect and just wants a basic but capable framework for scheduling and managing data processing related
+workflows..
+The service will run in peroduction in a docker container called bor-workflow
+
+** Workflows implemented by this project are documented in /.workflows. ** 
+
+https://docs.prefect.io/v3/deploy/infrastructure-examples/docker
+
+
+## env file contents:
+## .env ##########################################
+DB_BOR_NAME=bor
+DB_BORINST_NAME=borinst
+DB_BORMETA_NAME=bormeta 
+DB_BORARCH_NAME=borarch
+
+DB_BOR_ADMIN_USER=borAdmin
+DB_BOR_SVC_USER=borSvcUser
+DB_BORINST_ADMIN_USER=borinstAdmin
+DB_BORINST_SVC_USER=borinstSvcUser
+DB_ALL_SVC_USER=borAllSvc
+
+
+## ###############################################
+
+
+## .env.local ####################################
+MYSQL_ROOT_PASSWORD=CA4DYCpM8T
+DB_BOR_ADMIN_PASSWORD=Aye3aBYrXF
+DB_BOR_SVC_USER_PASSWORD=xYFhNWJZ4g
+DB_BORINST_ADMIN_PASSWORD=kBu9pjz2vi
+DB_BORINST_SVC_USER_PASSWORD=u67nyNgomZ
+DB_ALL_SVC_USER_PASSWORD=u67nyNgomZ
+
+## ###############################################
+
+
+## System port scheme:
+
+container      dev   stage prod  docker-internal
+-----------------------------------------------
+bor-app        4400  4500  4600  3000
+bor-api        4410  4510  4610  4000
+bor-db         4420  4520  4620  3306
+bof-message    4430  4530  4630  9092
+bor-workflow   4440  4540  4640  4200 ** this container/service
+    bor-workflow-db ...to be completed...
+    bor-etl-agent   ...to be completed... (4450  4550  4650  8888)
+bor-svc-calc   4460  4560  4660  5000
+bor-files      4470  4570  4670  21
+
+
+## prefect
+The Prefect subsystem will use a containerized PostgreSQL database for orchestration state, following a simple, maintainable, and industry-standard architecture. The recommended production setup uses three containers:
+
+### 1. Prefect Server/UI/API/CLI Container
+- **Image:** Official Prefect image (`prefecthq/prefect:3-latest`)
+- **Purpose:** Runs the Prefect server, UI, API, and CLI for orchestration, scheduling, and monitoring.
+- **Ports:** Exposes 4640 (UI/API) to the host (e.g., `-p 4440:4200` for dev).
+- **Management:** Start/stop with Docker (NOT Docker Compose). No custom ETL code or dependencies needed here.
+- **Example:**
+  ```bash
+  docker run -d --rm \
+    --name bor-workflow \
+    --network bor-network \
+    -p 4640:4200 \
+    -e PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@bor-workflow-db:5432/prefect" \
+    prefecthq/prefect:3-latest \
+    prefect server start --host 0.0.0.0
+  ```
+
+### 2. ETL Agent/Worker Container (Custom Image)
+- **Image:** Custom image based on `prefecthq/prefect:3-latest`, with your ETL dependencies (e.g., `mysql-client`, `pandas`, `mysql-connector-python`, etc.) installed.
+- **Purpose:** Runs the Prefect agent, which picks up and executes your ETL flows and tasks.
+- **Management:** Build and run as a separate container. Register this image with your Prefect work pool for flow execution.
+- **Example Dockerfile:**
+  ```dockerfile
+  FROM prefecthq/prefect:3-latest
+  RUN apt-get update && apt-get install -y mysql-client && \
+      pip install pandas mysql-connector-python python-dotenv
+  ```
+- **Example run:**
+  ```bash
+  docker run -d --rm \
+    --name bor-etl-agent \
+    --network bor-network \
+    -e PREFECT_API_URL="http://bor-workflow:4200/api" \
+    custom-etl-image:latest \
+    prefect agent start --work-pool 'default-agent-pool'
+  ```
+
+### 3. PostgreSQL Database Container (bor-workflow-db)
+- **Image:** Official PostgreSQL image (e.g., `postgres:latest`)
+- **Purpose:** Stores Prefect orchestration state and metadata.
+- **Management:** Start/stop with Docker or Docker Compose. Data persisted via Docker volume.
+- **Example:**
+  ```bash
+  docker run -d --name bor-workflow-db \
+    --network bor-network \
+    -v bor-workflow-db-data:/var/lib/postgresql/data \
+    -e POSTGRES_USER=prefect \
+    -e POSTGRES_PASSWORD=prefect \
+    -e POSTGRES_DB=prefect \
+    -p 5432:5432 \
+    postgres:latest
+  ```
+
+### Management and Usage
+- All containers are connected via the `bor-network` Docker network for secure, internal communication.
+- The Prefect server and agent containers can be managed with Docker CLI or Docker Compose.
+- Environment variables are used for all secrets and connection details, stored in `.env` files and passed to containers as needed.
+- To deploy a flow:
+  1. Build and apply the deployment from the agent container (or any container with the CLI and your code):
+     ```bash
+     docker exec -it bor-workflow bin/bash (or sh?)
+     prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"
+     prefect deployment apply file_ingestion_workflow-deployment.yaml
+     ```
+  2. Start the agent (if not already running):
+     ```bash
+     prefect agent start --work-pool 'default-agent-pool'
+     ```
+  3. Monitor and manage flows via the Prefect UI at `http://localhost:4440`.
+
+### Summary Table
+| Container           | Image                        | Purpose                        | Custom?         |
+|---------------------|-----------------------------|--------------------------------|-----------------|
+| Prefect Server      | prefecthq/prefect:3-latest  | UI, API, orchestration         | No              |
+| ETL Agent/Worker    | Custom (from official base) | Runs your ETL flows/tasks      | Yes (for deps)  |
+| bor-workflow-db     | postgres:latest             | Prefect state/metadata         | No              |
+
+This architecture ensures a simple, maintainable, and production-ready Prefect deployment, with clear separation of concerns and easy extensibility for your ETL workflows.
+
+## ########################################
+
+Technology, general:
+- This project will create a workflow management/orchestration service using the Prefect python library. 
+- A docker network called 'bor-network' is used for interserice communication between this and other docker containers in the system.
+- A docker volume called 'bor-files-data' will be used to persist Prefect's SQLite database, logs, and workflow state data between container restarts
+- the project will use modern, best practices, and industry standard technologies for web application architecture and development.
+- the project will use the latest version of Prefect, python, mysql client, and related technologies.
+
+
+## technical details 
+This project will be developed to a high standard of quality but will favour simplicity over sophistication in design and implementation.
+Advice and input from AI will be given as an expert professional using industry best practices for the technologies used. 
+All secrets will be stored in .env files using standard techniques for the technologies used. .env files will follow this naming convention:
+- .env
+- .env.local
+
+## technologies used
+- Typescript
+- Python
+- Prefect
+- Mysql
+- Docker
+- Git
+- Github and github actions for CI/CD to production
+
+## developer details
+You are a senior, experienced full stack system architect, designer and developer with years of production code in the above listed technologies. 
+You have experience in data-centric environments including data management, etl, data validation, data processing. 
+You follow industry best practices. 
+You take pride in the quality of your work. 
+You are technically competent but prefer simple implementations. 
+You carefully consider tradeoffs to be made during design decisions. 
+
+
+## RBAC considerations
+
+
+## testing 
+tbd 
+
+## deployment 
+ # to ensure prod has all of the .env files, some of which are .gitignored 
+scp bor-db/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-db/
+scp bor-api/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-api/
+scp bor-app/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-app/
+scp bor-files/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-files/
+scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-workflow/
+
+
+# DEV ITERATIONS
+
+## deploying to the Prefect server (locally, on container)
+./scripts/deploy-wf.sh
+
+
+DEV:
+1. clear; ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start; docker ps
+
+to deploy a flow with the cli:
+   prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"
+   
+
+This creates a deployment YAML file (e.g., file_ingestion_workflow-deployment.yaml).
+apply the deployment
+    prefect deployment apply file_ingestion_workflow-deployment.yaml
+
+start an agent:
+To actually run flows, you need a Prefect agent running and connected to your server.
+In your container, you can start an agent with:
+    prefect agent start --work-pool 'default-agent-pool'
+(You may need to create a work pool in the UI or via CLI if it doesn't exist.)
+
+4. Result
+Once deployed, your flow will appear in the "Flows" and "Deployments" sections of the UI.
+You can then trigger runs, schedule them, and monitor their status.
+
+2. git push origin <branch>
+
+PROD:
+3. logged in as robmenning.com@xenodochial-turing...
+3.a. cd ~/bor/bor-workflow
+3.b. git pull origin <branch>
+4. logged in as root@xenodochial-turing
+4.a. cd /var/www/vhosts/robmenning.com/bor/bor-workflow
+4.b. clear; *stop and start service...*; docker ps; docker logs bor-workflow
+
+
+
+## running and monitoring in different environments:
+
+
+### Development Scripts
+
+
+### Docker Container Scripts
+
+
+### Usage Instructions
