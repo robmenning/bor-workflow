@@ -1,11 +1,17 @@
 This project will create a workflow managment service implemented with the Prefect orchestration engine (https://docs.prefect.io/v3/get-started). 
 A top requirement is that this is a light and simple to admin implementation of Prefect.
-The context is an early stage project that has a next.js web application, a node express api, a mysql 8 database, an asynchronous pub/sub messaging service, an etl service, a filestore and ftp service, and this workflow service. All are running in separate processes in separate docker containers and are connected by a docker network called bor-network. 
+The context is an early stage project composed of docker container services, that has a next.js web application (docker container: bor-app), a node express api (docker container: bor-api), a mysql 8 database (docker container: bor-db), a filestore ftp service (docker container: bor-files), and this workflow service (docker container: bor-workflow). 
+All docker containers are running in separate processes in separate docker containers and are connected by a docker network called bor-network. 
+The bor-files, bor-db, and this bor-workflow share at least one docker persistent volume to be used in ETL and data processing workflows by this project. 
+This bor-workflow service will be responsible for two sub-services: 
+  1. bor-workflow-db: a postgresql database in a docker container using the standard best practice implementation of the database required to host the prefect server. 
+  2. bor-etl-agent: a service for executing prefect workflows and tasks. 
+
+Initial workflow:
 This service will be used initially in the following business case: a simple ETL ingestion will: 
-1. take a file from a local directory
-2. FTP it to the bor-files container
-3. execute the mysqlimport client program is to ingest the file into a staging table in the 'borarch' database called 'FundClassFee'
-4. execute the stored procedure then validates the data and loads it into a borinst database table. 
+1. check for the existence of an import file in the persistent docker volume shared with bor-files and bor-db. 
+2. execute the mysqlimport client program is to ingest the file into a staging table in the 'borarch' database in the bor-db contanerized database called 'FundClassFee'. 
+3. execute the stored procedure bormeta.usp_FundClassFee_Load . 
 A simple and flexible implementation is required because the team has minimal experience with Prefect and just wants a basic but capable framework for scheduling and managing data processing related
 workflows..
 The service will run in peroduction in a docker container called bor-workflow
