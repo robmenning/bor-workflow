@@ -33,8 +33,8 @@ FTP_HOST="localhost"
 FTP_PORT="4470"    # Dev port from port scheme
 CSV_FILE="tests/data/fund-class-fees.csv"
 DB_HOST="bor-db"
-DB_USER="borAllSvc"  # Using borAllSvc for multi-database access
-DB_PASS="u67nyNgomZ"  # From envs.txt
+DB_USER="borETLSvc"  # Using borAllSvc for multi-database access
+DB_PASS="u67nomZyNg"  # From envs.txt
 DB_NAME="borarch"
 DB_TABLE="FundClassFee"
 
@@ -59,7 +59,7 @@ if [ $FTP_STATUS -ne 0 ]; then
 fi
 echo "FTP upload successful"
 
-# 2. Copy file directly to bor-etl-files volume
+# 2. Copy file directly to bor-etl-files volume (independent of FTP test above)
 echo "Copying file to bor-etl-files volume..."
 docker cp $CSV_FILE bor-db:/var/lib/mysql-files/fund-class-fees.csv
 
@@ -70,7 +70,8 @@ docker exec -i bor-db mysql \
     --password=$DB_PASS \
     --host=$DB_HOST \
     $DB_NAME \
-    -e "LOAD DATA INFILE '/var/lib/mysql-files/fund-class-fees.csv'
+    -e "DELETE FROM $DB_TABLE;
+        LOAD DATA INFILE '/var/lib/mysql-files/fund-class-fees.csv'
         INTO TABLE $DB_TABLE
         FIELDS TERMINATED BY ','
         ENCLOSED BY '\"'
