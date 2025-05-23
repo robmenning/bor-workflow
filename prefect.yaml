@@ -1,0 +1,5 @@
+# prefect.yaml
+name: bor-workflow
+entrypoint: src/workflows/file_ingestion.py:file_ingestion_workflow
+work_pool:
+  name: default-agent-pool

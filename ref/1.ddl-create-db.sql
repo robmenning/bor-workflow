@@ -101,6 +101,13 @@ CREATE USER IF NOT EXISTS 'borAllSvc'@'%' IDENTIFIED BY 'u67nyNgomZ';
 GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON *.* TO 'borAllSvc'@'%';
 FLUSH PRIVILEGES;
 
+
+-- create a user for ETL
+CREATE USER IF NOT EXISTS 'borETLSvc'@'%' IDENTIFIED BY 'u67nomZyNg';
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE, FILE, DROP ON *.* TO 'borETLSvc'@'%';
+FLUSH PRIVILEGES;
+
+
 -- sample connection using docker container:
 -- docker exec -it bor-db mysql -u borAdmin -pAye3aBYrXF -e "USE bor; SELECT COUNT(*) FROM Role;"
 -- docker exec -it bor-db mysql -u borAllAdmin -pborAllAdmin -e "USE bor; SELECT COUNT(*) FROM Role;"
