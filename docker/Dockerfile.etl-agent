@@ -1,0 +1,22 @@
+FROM prefecthq/prefect:3-latest
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    default-mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set working directory (optional, but /opt/prefect is standard for Prefect)
+WORKDIR /opt/prefect
+
+# Copy application code to the path expected by Prefect deployments
+COPY src/ /opt/prefect/src/
+
+# Set environment variables
+ENV PYTHONPATH=/opt/prefect
+
+# Command to run the agent
+CMD ["prefect", "worker", "start", "--pool", "default-agent-pool"] 
