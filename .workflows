@@ -53,11 +53,14 @@ final table(s) in databases such as borinst.
   - db_name (str, default="bormeta"): Database name
   - proc_name (str, default="usp_FileClassFee_Load"): Stored procedure name
   
-#### 3. Dependencies
+#### 3.a. Dependencies external
 - Python 3.11+
 - Prefect
 - mysql-connector-python
 - python-dotenv
+
+#### 3.b. Dependencies workflows
+n/a
 
 #### 4. Environment Variables
 Required:

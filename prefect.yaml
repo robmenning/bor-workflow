@@ -1,5 +1,18 @@
 # prefect.yaml
-name: bor-workflow
-entrypoint: src/workflows/file_ingestion.py:file_ingestion_workflow
-work_pool:
-  name: default-agent-pool
+version: 2.0
+deployments:
+  - name: Import web classfees
+    entrypoint: src/workflows/import_web_classfees.py:import_web_classfees_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      file_path: "/var/lib/mysql-files/ftpetl/incoming/fund-class-fees.csv"
+      db_host: "bor-db"
+      db_port: 3306
+      db_user: "borETLSvc"
+      db_password: "u67nomZyNg"
+      db_name: "borarch"
+      delimiter: ","
+      quote_char: "\""
+      line_terminator: "\n"
+      skip_lines: 1

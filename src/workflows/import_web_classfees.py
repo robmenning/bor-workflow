@@ -1,21 +1,24 @@
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import mysql.connector
 from prefect import flow, task
 from prefect.tasks import task_input_hash
 from datetime import timedelta
 
+from src.utils.base_ingestion import BaseIngestionWorkflow
+
 @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
 def check_file_exists(file_path: str, db_config: dict = None) -> bool:
+    """Check if file exists in the shared volume."""
     if file_path.startswith("/var/lib/mysql-files/"):
         # Optionally, check via MySQL if needed
         return True  # Assume file is present for MySQL server
     else:
         return Path(file_path).exists()
 
-@task
+@task(retries=3, retry_delay_seconds=60)
 def load_data_to_staging(file_path: str, db_config: dict) -> bool:
     """Load data from file into staging table using LOAD DATA INFILE."""
     try:
@@ -24,6 +27,8 @@ def load_data_to_staging(file_path: str, db_config: dict) -> bool:
         
         # Execute LOAD DATA INFILE command
         load_query = f"""
+        TRUNCATE TABLE borarch.FundClassFee;
+        
         LOAD DATA INFILE '{file_path}'
         INTO TABLE borarch.FundClassFee
         FIELDS TERMINATED BY ','
@@ -51,7 +56,7 @@ def load_data_to_staging(file_path: str, db_config: dict) -> bool:
         if 'conn' in locals():
             conn.close()
 
-@task
+@task(retries=3, retry_delay_seconds=60)
 def execute_stored_procedure(db_config: dict) -> bool:
     """Execute the stored procedure for data processing."""
     try:
@@ -72,51 +77,64 @@ def execute_stored_procedure(db_config: dict) -> bool:
         if 'conn' in locals():
             conn.close()
 
-@flow(name="File Ingestion Workflow")
-def file_ingestion_workflow(
+class ImportWebClassFeesWorkflow(BaseIngestionWorkflow):
+    """Import Web ClassFees file ingestion workflow implementation."""
+    
+    def __init__(self):
+        super().__init__(
+            name="Import Web ClassFees",
+            target_table="borarch.FundClassFee",
+            field_mappings={
+                "FundCode": "FundCode",
+                "FundName": "FundName",
+                "Class": "Class",
+                "Description": "Description",
+                "Mer": "Mer",
+                "Trailer": "Trailer",
+                "PerformanceFee": "PerformanceFee",
+                "MinInvestmentInitial": "MinInvestmentInitial",
+                "MinInvestmentSubsequent": "MinInvestmentSubsequent",
+                "Currency": "Currency"
+            },
+            field_transformations={
+                "Trailer": "NULLIF(@Trailer, '')",
+                "PerformanceFee": "NULLIF(@PerformanceFee, '')",
+                "MinInvestmentInitial": "NULLIF(@MinInvestmentInitial, '')",
+                "MinInvestmentSubsequent": "NULLIF(@MinInvestmentSubsequent, '')"
+            },
+            procedure_name="bormeta.usp_FundClassFee_Load"
+        )
+
+# Expose a top-level flow function for Prefect
+@flow
+def import_web_classfees_flow(
     file_path: str,
     db_host: str = "bor-db",
     db_port: int = 3306,
     db_user: str = "borAllSvc",
     db_password: str = None,
-    db_name: str = "borarch"
+    db_name: str = "borarch",
+    delimiter: str = ',',
+    quote_char: str = '"',
+    line_terminator: str = '\n',
+    skip_lines: int = 1
 ) -> bool:
     """
-    Main workflow for file ingestion process.
-    
-    Args:
-        file_path: Path to the input file in the shared volume
-        db_host: Database host
-        db_port: Database port
-        db_user: Database user
-        db_password: Database password
-        db_name: Database name
-    
-    Returns:
-        bool: True if workflow completed successfully, False otherwise
+    Top-level Prefect flow for Import Web ClassFees.
     """
-    # Configure database connection
-    db_config = {
-        "host": db_host,
-        "port": db_port,
-        "user": db_user,
-        "password": db_password,
-        "database": db_name
-    }
-    
-    # Check if file exists
-    if not check_file_exists(file_path):
-        print(f"File not found: {file_path}")
-        return False
-    
-    # Load data to staging
-    if not load_data_to_staging(file_path, db_config):
-        print("Failed to load data to staging")
-        return False
-    
-    # Execute stored procedure
-    if not execute_stored_procedure(db_config):
-        print("Failed to execute stored procedure")
-        return False
-    
-    return True 
+    wf = ImportWebClassFeesWorkflow()
+    return wf.execute(
+        file_path=file_path,
+        db_host=db_host,
+        db_port=db_port,
+        db_user=db_user,
+        db_password=db_password,
+        db_name=db_name,
+        delimiter=delimiter,
+        quote_char=quote_char,
+        line_terminator=line_terminator,
+        skip_lines=skip_lines
+    )
+
+# Create workflow instance
+# Create workflow instance

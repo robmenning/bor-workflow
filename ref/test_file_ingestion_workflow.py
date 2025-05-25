@@ -8,7 +8,7 @@ from ftplib import FTP, error_perm, error_temp
 from dotenv import load_dotenv
 from prefect import flow
 from prefect.exceptions import PrefectException
-from src.workflows.file_ingestion import file_ingestion_workflow
+from workflows.import_web_classfees import file_ingestion_workflow
 
 # Load environment variables
 load_dotenv()
