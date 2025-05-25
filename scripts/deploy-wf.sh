@@ -11,7 +11,7 @@ set -e
 
 
 # restart the containers
-    # ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start; docker ps
+    # ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start dev; docker ps
 
 # deploy wf
     # ./scripts/deploy-wf.sh build import_web_classfees
@@ -46,8 +46,14 @@ set -e
     # or
     # docker exec -it bor-workflow prefect deploy --apply
 
+# to copy a file into the volume accessible by bor-db: 
+# docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
 
+# deploy all workflows
+# docker exec -it bor-workflow prefect deploy --all
 
+# Set environment variables with defaults
+export PREFECT_API_URL=${PREFECT_API_URL:-"http://bor-workflow:4200/api"}
 # Set environment variables with defaults
 export PREFECT_API_URL=${PREFECT_API_URL:-"http://bor-workflow:4200/api"}
 export PREFECT_WORK_POOL=${PREFECT_WORK_POOL:-"default-agent-pool"}

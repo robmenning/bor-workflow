@@ -48,10 +48,12 @@ def load_data_to_staging(
     delimiter: str = ',',
     quote_char: str = '"',
     line_terminator: str = '\n',
-    skip_lines: int = 1
+    skip_lines: int = 1,
+    truncate_before_load: bool = False
 ) -> bool:
     """
     Load data from file into staging table using LOAD DATA INFILE.
+    Optionally truncate the table before loading.
     
     Args:
         file_path: Path to the input file
@@ -63,11 +65,13 @@ def load_data_to_staging(
         quote_char: Quote character
         line_terminator: Line terminator character
         skip_lines: Number of header lines to skip
+        truncate_before_load: Boolean indicating whether to truncate the table before loading
     """
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
-        
+        if truncate_before_load:
+            cursor.execute(f"TRUNCATE TABLE {target_table}")
         # Build field list and transformations
         fields = []
         transformations = []
@@ -153,7 +157,8 @@ class BaseIngestionWorkflow(BaseWorkflow):
         field_mappings: Dict[str, str],
         field_transformations: Optional[Dict[str, str]] = None,
         procedure_name: Optional[str] = None,
-        procedure_params: Optional[Dict[str, Any]] = None
+        procedure_params: Optional[Dict[str, Any]] = None,
+        truncate_before_load: bool = False
     ):
         super().__init__(name)
         self.target_table = target_table
@@ -161,20 +166,22 @@ class BaseIngestionWorkflow(BaseWorkflow):
         self.field_transformations = field_transformations
         self.procedure_name = procedure_name
         self.procedure_params = procedure_params
+        self.truncate_before_load = truncate_before_load
         
     @flow(name="File Ingestion Workflow")
     def execute(
         self,
         file_path: str,
-        db_host: str = "bor-db",
-        db_port: int = 3306,
-        db_user: str = "borAllSvc",
-        db_password: str = None,
-        db_name: str = "borarch",
+        db_host: str,
+        db_port: str,
+        db_user: str,
+        db_password: str,
+        db_name: str,
         delimiter: str = ',',
         quote_char: str = '"',
         line_terminator: str = '\n',
-        skip_lines: int = 1
+        skip_lines: int = 1,
+        truncate_before_load: bool = None
     ) -> bool:
         """
         Main workflow for file ingestion process.
@@ -182,7 +189,7 @@ class BaseIngestionWorkflow(BaseWorkflow):
         Args:
             file_path: Path to the input file in the shared volume
             db_host: Database host
-            db_port: Database port
+            db_port: Database port (as string, will be cast to int)
             db_user: Database user
             db_password: Database password
             db_name: Database name
@@ -190,6 +197,7 @@ class BaseIngestionWorkflow(BaseWorkflow):
             quote_char: Quote character
             line_terminator: Line terminator character
             skip_lines: Number of header lines to skip
+            truncate_before_load: Boolean indicating whether to truncate the table before loading
         
         Returns:
             bool: True if workflow completed successfully, False otherwise
@@ -208,11 +216,17 @@ class BaseIngestionWorkflow(BaseWorkflow):
             # Configure database connection
             db_config = {
                 "host": db_host,
-                "port": db_port,
+                "port": int(db_port),
                 "user": db_user,
                 "password": db_password,
                 "database": db_name
             }
+            
+            # Defensive cast for truncate_before_load
+            if isinstance(truncate_before_load, str):
+                truncate_before_load = truncate_before_load.lower() == "true"
+            if truncate_before_load is None:
+                truncate_before_load = self.truncate_before_load
             
             # Check if file exists
             if not check_file_exists(file_path):
@@ -228,7 +242,8 @@ class BaseIngestionWorkflow(BaseWorkflow):
                 delimiter=delimiter,
                 quote_char=quote_char,
                 line_terminator=line_terminator,
-                skip_lines=skip_lines
+                skip_lines=skip_lines,
+                truncate_before_load=truncate_before_load
             ):
                 raise Exception("Failed to load data to staging")
             

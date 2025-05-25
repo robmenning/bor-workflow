@@ -102,22 +102,23 @@ class ImportWebClassFeesWorkflow(BaseIngestionWorkflow):
                 "MinInvestmentInitial": "NULLIF(@MinInvestmentInitial, '')",
                 "MinInvestmentSubsequent": "NULLIF(@MinInvestmentSubsequent, '')"
             },
-            procedure_name="bormeta.usp_FundClassFee_Load"
+            procedure_name="bormeta.usp_FundClassFee_Load",
+            truncate_before_load=True
         )
 
-# Expose a top-level flow function for Prefect
 @flow
 def import_web_classfees_flow(
     file_path: str,
-    db_host: str = "bor-db",
-    db_port: int = 3306,
-    db_user: str = "borAllSvc",
-    db_password: str = None,
-    db_name: str = "borarch",
+    db_host: str,
+    db_port: str,  # Accept as string for env var compatibility
+    db_user: str,
+    db_password: str,
+    db_name: str,
     delimiter: str = ',',
     quote_char: str = '"',
     line_terminator: str = '\n',
-    skip_lines: int = 1
+    skip_lines: int = 1,
+    truncate_before_load: bool = True,  # <-- Add this line, default matches YAML
 ) -> bool:
     """
     Top-level Prefect flow for Import Web ClassFees.
@@ -126,14 +127,15 @@ def import_web_classfees_flow(
     return wf.execute(
         file_path=file_path,
         db_host=db_host,
-        db_port=db_port,
+        db_port=db_port,  # Will be cast to int in workflow
         db_user=db_user,
         db_password=db_password,
         db_name=db_name,
         delimiter=delimiter,
         quote_char=quote_char,
         line_terminator=line_terminator,
-        skip_lines=skip_lines
+        skip_lines=skip_lines,
+        truncate_before_load=truncate_before_load,  # <-- Pass it through
     )
 
 # Create workflow instance
