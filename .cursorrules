@@ -178,7 +178,9 @@ scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.pag
 
 
 DEV:
-1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start; docker ps;
+1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start dev; docker ps;
+# deploy all workflows
+docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
 
 to deploy a flow with the cli:
    prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"
@@ -220,3 +222,5 @@ PROD:
 
 
 ### Usage Instructions
+
+

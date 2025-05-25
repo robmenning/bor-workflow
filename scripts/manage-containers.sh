@@ -2,7 +2,7 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 {start|stop|clear|status}"
+    echo "Usage: $0 {start|stop|clear|status} [dev|prod]"
     exit 1
 }
 
@@ -28,13 +28,65 @@ init_postgres() {
     docker exec bor-workflow-db psql -U prefect -c "GRANT ALL PRIVILEGES ON DATABASE prefect TO prefect;"
 }
 
+# Function to merge env files for the current environment
+merge_env_files() {
+    local env=${1:-prod}
+    local env_file=".env"
+    local env_main=".env.production"
+    local env_local=".env.production.local"
+    local merged_file=".env.production.merged"
+    if [ "$env" = "dev" ]; then
+        env_main=".env.development"
+        env_local=".env.development.local"
+        merged_file=".env.development.merged"
+    fi
+    echo "Merging $env_file, $env_main, and $env_local into $merged_file..."
+    > "$merged_file"
+    if [ -f "$env_file" ]; then
+        cat "$env_file" >> "$merged_file"
+    fi
+    if [ -f "$env_main" ]; then
+        cat "$env_main" >> "$merged_file"
+    fi
+    if [ -f "$env_local" ]; then
+        cat "$env_local" >> "$merged_file"
+    fi
+    if [ ! -s "$merged_file" ]; then
+        echo "No env files found to merge!"
+        exit 1
+    fi
+    export MERGED_ENV_FILE="$merged_file"
+}
+
+# Function to clean up merged env file
+cleanup_env_file() {
+    if [ -n "$MERGED_ENV_FILE" ] && [ -f "$MERGED_ENV_FILE" ]; then
+        rm "$MERGED_ENV_FILE"
+        echo "Cleaned up $MERGED_ENV_FILE"
+    fi
+}
+
+# Function to deploy flows with correct env vars using deployment build/apply
+run_prefect_deploy_build() {
+    local env_file="/tmp/merged.env"
+    echo "Copying env file into bor-workflow container..."
+    docker cp "$MERGED_ENV_FILE" bor-workflow:$env_file
+    echo "Running 'prefect deployment build/apply' for all flows in bor-workflow with env file $env_file..."
+    docker exec -i bor-workflow /bin/bash -c "export \
+      \$(grep -v '^#' $env_file | xargs) && \
+      prefect deploy --all"
+}
+
 # Function to start containers
 start_containers() {
-    echo "Starting containers..."
-    
+    local env=${1:-prod}
+    echo "Starting containers for environment: $env..."
+    merge_env_files "$env"
+    local env_file="$MERGED_ENV_FILE"
     # Start PostgreSQL database
     docker run -d --name bor-workflow-db \
         --network bor-network \
+        --env-file "$env_file" \
         -v bor-workflow-db-data:/var/lib/postgresql/data \
         -e POSTGRES_USER=prefect \
         -e POSTGRES_PASSWORD=prefect \
@@ -45,6 +97,7 @@ start_containers() {
     if ! wait_for_postgres; then
         echo "Failed to start PostgreSQL. Stopping containers..."
         stop_containers
+        cleanup_env_file
         exit 1
     fi
 
@@ -54,6 +107,7 @@ start_containers() {
     # Start Prefect server (do NOT start a worker here)
     docker run -d --name bor-workflow \
         --network bor-network \
+        --env-file "$env_file" \
         -p 4440:4200 \
         -e PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@bor-workflow-db:5432/prefect" \
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
@@ -84,6 +138,7 @@ start_containers() {
     docker run -d --rm \
         --name bor-etl-agent \
         --network bor-network \
+        --env-file "$env_file" \
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
         -e PREFECT_AGENT_API_URL="http://bor-workflow:4200/api" \
         -v bor-files-data:/var/lib/mysql-files \
@@ -94,6 +149,8 @@ start_containers() {
     docker exec bor-workflow mkdir -p /data/imports
     docker exec bor-workflow chmod 777 /data/imports
 
+    run_prefect_deploy_build
+    cleanup_env_file
     echo "All containers started successfully!"
 }
 
@@ -118,7 +175,7 @@ show_status() {
 # Main script logic
 case "$1" in
     start)
-        start_containers
+        start_containers "$2"
         ;;
     stop)
         stop_containers

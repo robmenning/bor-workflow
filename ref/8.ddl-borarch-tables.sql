@@ -142,7 +142,7 @@ Usage:
 --   EXECUTE stmt;
 --   DEALLOCATE PREPARE stmt;
 
-  SELECT * FROM temp_FundClassFee;
+  SELECT FundCode, FundName, Class, Description, Mer, Trailer, PerformanceFee, MinInvestmentInitial, MinInvestmentSubsequent, Currency FROM borarch.FundClassFee;
 
 END//
 
@@ -154,11 +154,27 @@ DROP TABLE IF EXISTS holdweb;
 CREATE TABLE holdweb (
     date DATE NOT NULL,
     fund_name VARCHAR(128) NOT NULL,
-    fund_code VARCHAR(16) NOT NULL,
-    issuer VARCHAR(255) NOT NULL,
-    issue VARCHAR(255),
+    name VARCHAR(255) NOT NULL,
+    sector VARCHAR(255) not null,
     currency VARCHAR(8),
-    units BIGINT,
-    cost DECIMAL(20,2),
-    mv DECIMAL(20,2)
+    units decimal(21,6),
+    cost decimal(21,6),
+    mv decimal(21,6)
 );
+
+
+-- switch to bormeta, create usp_holdweb_process
+
+use bormeta;
+
+DELIMITER //
+
+DROP PROCEDURE IF EXISTS usp_holdweb_process//
+CREATE PROCEDURE IF NOT EXISTS usp_holdweb_process(
+  -- IN p_date DATE
+)
+BEGIN
+
+  select date, fund_name, name, sector, currency, units, cost, mv from borarch.holdweb;
+
+END//
