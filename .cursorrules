@@ -4,7 +4,7 @@ The context is an early stage project composed of docker container services, tha
 All docker containers are running in separate processes in separate docker containers and are connected by a docker network called bor-network. 
 The bor-files, bor-db, and this bor-workflow share at least one docker persistent volume to be used in ETL and data processing workflows by this project. 
 This bor-workflow service will be responsible for two sub-services: 
-  1. bor-workflow-db: a postgresql database in a docker container using the standard best practice implementation of the database required to host the prefect server. 
+  1. bor-workflow-db: a postgresql database in a docker container using the standard best practice implementation of the database required to host the prefect server using a docker volume to persist the dataf. 
   2. bor-etl-agent: a service for executing prefect workflows and tasks. 
 
 Initial workflow:
@@ -20,33 +20,6 @@ The service will run in peroduction in a docker container called bor-workflow
 
 https://docs.prefect.io/v3/deploy/infrastructure-examples/docker
 
-
-## env file contents:
-## .env ##########################################
-DB_BOR_NAME=bor
-DB_BORINST_NAME=borinst
-DB_BORMETA_NAME=bormeta 
-DB_BORARCH_NAME=borarch
-
-DB_BOR_ADMIN_USER=borAdmin
-DB_BOR_SVC_USER=borSvcUser
-DB_BORINST_ADMIN_USER=borinstAdmin
-DB_BORINST_SVC_USER=borinstSvcUser
-DB_ALL_SVC_USER=borAllSvc
-
-
-## ###############################################
-
-
-## .env.local ####################################
-MYSQL_ROOT_PASSWORD=CA4DYCpM8T
-DB_BOR_ADMIN_PASSWORD=Aye3aBYrXF
-DB_BOR_SVC_USER_PASSWORD=xYFhNWJZ4g
-DB_BORINST_ADMIN_PASSWORD=kBu9pjz2vi
-DB_BORINST_SVC_USER_PASSWORD=u67nyNgomZ
-DB_ALL_SVC_USER_PASSWORD=u67nyNgomZ
-
-## ###############################################
 
 
 ## System port scheme:
@@ -160,7 +133,10 @@ This project will be developed to a high standard of quality but will favour sim
 Advice and input from AI will be given as an expert professional using industry best practices for the technologies used. 
 All secrets will be stored in .env files using standard techniques for the technologies used. .env files will follow this naming convention:
 - .env
-- .env.local
+- .env.development
+- .env.development.local
+- .env.production
+- .env.production.local
 
 ## technologies used
 - Typescript
@@ -202,7 +178,7 @@ scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.pag
 
 
 DEV:
-1. clear; ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start; docker ps
+1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start; docker ps;
 
 to deploy a flow with the cli:
    prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"

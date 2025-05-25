@@ -4,7 +4,7 @@ usage (from .../cbor/ directory):
 mysql -u borarchAdmin -pkBu9pjz2vi < ./script/init/8.ddl-borarch-tables.sql
 
 run on the docker bor-db container:
-cat ./script/init/8.ddl-borarch-tables.sql | docker exec -i bor-db mysql -u borarchAdmin -pkBu9pjz2vi borarch
+cat ./script/init/8.ddl-borarch-tables.sql | docker exec -i bor-db mysql -u borAllAdmin -pkBu9pjz2vi borarch
 
 TODO 
 
@@ -18,7 +18,8 @@ yyyymmdd   user          description
 use borarch;
 
 -- Create the fund_data table
-CREATE TABLE IF NOT EXISTS FundClassFee (
+drop table if exists FundClassFee;
+CREATE TABLE FundClassFee (
   id INT AUTO_INCREMENT PRIMARY KEY,
   FundCode VARCHAR(10) NOT NULL,
   FundName VARCHAR(100) NOT NULL,
@@ -146,3 +147,18 @@ Usage:
 END//
 
 DELIMITER ;
+
+use borarch;
+
+DROP TABLE IF EXISTS holdweb;
+CREATE TABLE holdweb (
+    date DATE NOT NULL,
+    fund_name VARCHAR(128) NOT NULL,
+    fund_code VARCHAR(16) NOT NULL,
+    issuer VARCHAR(255) NOT NULL,
+    issue VARCHAR(255),
+    currency VARCHAR(8),
+    units BIGINT,
+    cost DECIMAL(20,2),
+    mv DECIMAL(20,2)
+);
