@@ -11,7 +11,7 @@ class ImportWebHoldWorkflow(BaseIngestionWorkflow):
             field_mappings={
                 "date": "date",
                 "fund_name": "fund_name",
-                "name": "name",
+                "sec_name": "sec_name",
                 "sector": "sector",
                 "currency": "currency",
                 "units": "units",
@@ -19,6 +19,7 @@ class ImportWebHoldWorkflow(BaseIngestionWorkflow):
                 "mv": "mv"
             },
             procedure_name="bormeta.usp_holdweb_process",
+            procedure_params={"flag": False},
             truncate_before_load=True
         )
 

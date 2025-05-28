@@ -1,32 +1,80 @@
-date,fund_name,name,sector,currency,units,cost,mv
-2024-12-31,"Pender Bond Universe Fund","Pender Corporate Bond Fund, Class 'O'","Fund",CAD,1493549,16371364,17407908
-2024-12-31,"Pender Bond Universe Fund","Cameco Corporation, Callable, 2.95%, 2027/10/21","Canada (32.2%)",CAD,2650000,2514057,2605561
-2024-12-31,"Pender Bond Universe Fund","Canadian National Railway Company, Callable, 3.20%, 2028/07/31","Canada (32.2%)",CAD,2000000,1899600,1982807
-2024-12-31,"Pender Bond Universe Fund","Canadian Pacific Railway Company, Callable, 3.15%, 2029/03/13","Canada (32.2%)",CAD,1100000,1178033,1062461
-2024-12-31,"Pender Bond Universe Fund","Choice Properties Real Estate Investment Trust, Callable, 2.85%, 2027/05/21","Canada (32.2%)",CAD,1100000,1139660,1082507
-2024-12-31,"Pender Bond Universe Fund","Choice Properties Real Estate Investment Trust, Callable, 2.859%, 2030/03/04","Canada (32.2%)",CAD,1955000,1848226,1858684
-2024-12-31,"Pender Bond Universe Fund","Fairfax Financial Holdings Limited, Callable, 4.70%, 2026/12/16","Canada (32.2%)",CAD,2200000,2440282,2424361
-2024-12-31,"Pender Bond Universe Fund","Fairfax Financial Holdings Limited, Callable, 3.95%, 2031/03/03","Canada (32.2%)",CAD,1700000,1796436,1984115
-2024-12-31,"Pender Bond Universe Fund","Loblaw Companies Limited, Callable, 4.49%, 2028/12/11","Canada (32.2%)",CAD,2500000,2478037,2582017
-2024-12-31,"Pender Bond Universe Fund","Loblaw Companies Limited, Callable, 2.28%, 2030/05/07","Canada (32.2%)",CAD,2000000,1733300,1865828
-2024-12-31,"Pender Bond Universe Fund","Thomson Reuters Corp, Callable, 2.24%, 2025/05/14","Canada (32.2%)",CAD,4700000,4595569,4678818
-2024-12-31,"Pender Bond Universe Fund","Waste Management of Canada Corporation, Callable, 2.60%, 2026/09/23","Canada (32.2%)",CAD,5000000,4721090,4937887
-2024-12-31,"Pender Bond Universe Fund","Duke Energy Corp., Convertible, 4.13%, 2026/04/15","United States (23.5%)",USD,1000000,1476456,1480574
-2024-12-31,"Pender Bond Universe Fund","Esperion Therapeutics Inc., Convertible, Callable, 5.75%, 2030/06/15","United States (23.5%)",USD,1000000,1341250,1340623
-2024-12-31,"Pender Bond Universe Fund","FirstEnergy Corp., Callable, 2.65%, 2030/03/01","United States (23.5%)",USD,2000000,2499764,2550307
-2024-12-31,"Pender Bond Universe Fund","McDonald's Corporation, Callable, 4.86%, 2031/05/21","United States (23.5%)",CAD,4000000,4174880,4177672
-2024-12-31,"Pender Bond Universe Fund","Occidental Petroleum Corporation, Callable, 4.10%, 2047/07/25","United States (23.5%)",USD,2000000,1841523,1979727
-2024-12-31,"Pender Bond Universe Fund","Ohio Edison Co., Callable, 8.25%, 2038/10/15","United States (23.5%)",USD,750000,1326042,1335111
-2024-12-31,"Pender Bond Universe Fund","OPKO Health Inc., Convertible, 3.75%, 2029/01/15","United States (23.5%)",USD,1000000,686325,1048000
-2024-12-31,"Pender Bond Universe Fund","PNM Resources Inc., Convertible, Callable, 5.75%, 2054/06/01","United States (23.5%)",USD,1000000,1340967,1197167
-2024-12-31,"Pender Bond Universe Fund","Verisign, Inc., Callable, 4.75%, 2027/07/15","United States (23.5%)",USD,2000000,2551428,2827144
-2024-12-31,"Pender Bond Universe Fund","Verisign, Inc., Callable, 2.70%, 2031/06/15","United States (23.5%)",USD,1000000,1179545,1233462
-2024-12-31,"Pender Bond Universe Fund","National Grid Electricity Transmission PLC, Callable, 2.30%, 2029/06/22","Foreign (6.9%)",CAD,2000000,1850140,1886212
-2024-12-31,"Pender Bond Universe Fund","National Grid Electricity Transmission PLC, Callable, 5.22%, 2030/09/16","Foreign (6.9%)",CAD,2000000,2124900,2121712
-2024-12-31,"Pender Bond Universe Fund","Petroleos Mexicanos, Callable, 6.75%, 2047/09/21","Foreign (6.9%)",USD,1800000,1494760,1780702
-2024-12-31,"Pender Bond Universe Fund","Government of Canada, 2.25%, 2029/06/01","Government bonds",CAD,3500000,3354155,3411169
-2024-12-31,"Pender Bond Universe Fund","Government of Canada, 2.75%, 2033/06/01","Government bonds",CAD,2000000,2154027,2229514
-2024-12-31,"Pender Bond Universe Fund","Government of Canada, Real Return, 4.00%, 2031/12/01","Government bonds",CAD,1000000,2218558,2089913
-2024-12-31,"Pender Bond Universe Fund","Government of Canada, Real Return, 3.00%, 2036/12/01","Government bonds",CAD,750000,1385559,1384355
-2024-12-31,"Pender Bond Universe Fund","United States Treasury, 3.50%, 2033/02/15","Government bonds",USD,1000000,1277296,1331783
-2024-12-31,"Pender Bond Universe Fund","United States Treasury, Inflation Indexed, 0.13%, 2052/02/15","Government bonds",USD,1814256,1393707,1416495
+date,fund_name,sec_name,sector,currency,units,cost,mv
+2024-12-31,"PFCM mini bond universe","PFCM mini corp bond, Class 'X'","Fund",CAD,1493549,16371364,17407908
+2024-12-31,"PFCM mini bond universe","Cameco Corporation, Callable, 2.95%, 2027/10/21","Mining",CAD,2650000,2514057,2605561
+2024-12-31,"PFCM mini bond universe","Canadian National Railway Company, Callable, 3.20%, 2028/07/31","Transportation",CAD,2000000,1899600,1982807
+2024-12-31,"PFCM mini bond universe","Canadian Pacific Railway Company, Callable, 3.15%, 2029/03/13","Transportation",CAD,1100000,1178033,1062461
+2024-12-31,"PFCM mini bond universe","Choice Properties Real Estate Investment Trust, Callable, 2.85%, 2027/05/21","Real Estate",CAD,1100000,1139660,1082507
+2024-12-31,"PFCM mini bond universe","Choice Properties Real Estate Investment Trust, Callable, 2.859%, 2030/03/04","Real Estate",CAD,1955000,1848226,1858684
+2024-12-31,"PFCM mini bond universe","Fairfax Financial Holdings Limited, Callable, 4.70%, 2026/12/16","Insurance",CAD,2200000,2440282,2424361
+2024-12-31,"PFCM mini bond universe","Fairfax Financial Holdings Limited, Callable, 3.95%, 2031/03/03","Insurance",CAD,1700000,1796436,1984115
+2024-12-31,"PFCM mini bond universe","Loblaw Companies Limited, Callable, 4.49%, 2028/12/11","Retail",CAD,2500000,2478037,2582017
+2024-12-31,"PFCM mini bond universe","Loblaw Companies Limited, Callable, 2.28%, 2030/05/07","Retail",CAD,2000000,1733300,1865828
+2024-12-31,"PFCM mini bond universe","Thomson Reuters Corp, Callable, 2.24%, 2025/05/14","Information Services",CAD,4700000,4595569,4678818
+2024-12-31,"PFCM mini bond universe","Waste Management of Canada Corporation, Callable, 2.60%, 2026/09/23","Environmental Services",CAD,5000000,4721090,4937887
+2024-12-31,"PFCM mini bond universe","Duke Energy Corp., Convertible, 4.13%, 2026/04/15","Utilities",USD,1000000,1476456,1480574
+2024-12-31,"PFCM mini bond universe","Esperion Therapeutics Inc., Convertible, Callable, 5.75%, 2030/06/15","Biotechnology",USD,1000000,1341250,1340623
+2024-12-31,"PFCM mini bond universe","FirstEnergy Corp., Callable, 2.65%, 2030/03/01","Utilities",USD,2000000,2499764,2550307
+2024-12-31,"PFCM mini bond universe","McDonald's Corporation, Callable, 4.86%, 2031/05/21","Restaurants",CAD,4000000,4174880,4177672
+2024-12-31,"PFCM mini bond universe","Occidental Petroleum Corporation, Callable, 4.10%, 2047/07/25","Oil & Gas",USD,2000000,1841523,1979727
+2024-12-31,"PFCM mini bond universe","Ohio Edison Co., Callable, 8.25%, 2038/10/15","Utilities",USD,750000,1326042,1335111
+2024-12-31,"PFCM mini bond universe","OPKO Health Inc., Convertible, 3.75%, 2029/01/15","Healthcare",USD,1000000,686325,1048000
+2024-12-31,"PFCM mini bond universe","PNM Resources Inc., Convertible, Callable, 5.75%, 2054/06/01","Utilities",USD,1000000,1340967,1197167
+2024-12-31,"PFCM mini bond universe","Verisign, Inc., Callable, 4.75%, 2027/07/15","Technology",USD,2000000,2551428,2827144
+2024-12-31,"PFCM mini bond universe","Verisign, Inc., Callable, 2.70%, 2031/06/15","Technology",USD,1000000,1179545,1233462
+2024-12-31,"PFCM mini bond universe","National Grid Electricity Transmission PLC, Callable, 2.30%, 2029/06/22","Utilities",CAD,2000000,1850140,1886212
+2024-12-31,"PFCM mini bond universe","National Grid Electricity Transmission PLC, Callable, 5.22%, 2030/09/16","Utilities",CAD,2000000,2124900,2121712
+2024-12-31,"PFCM mini bond universe","Petroleos Mexicanos, Callable, 6.75%, 2047/09/21","Oil & Gas",USD,1800000,1494760,1780702
+2024-12-31,"PFCM mini bond universe","Government of Canada, 2.25%, 2029/06/01","Government bonds",CAD,3500000,3354155,3411169
+2024-12-31,"PFCM mini bond universe","Government of Canada, 2.75%, 2033/06/01","Government bonds",CAD,2000000,2154027,2229514
+2024-12-31,"PFCM mini bond universe","Government of Canada, Real Return, 4.00%, 2031/12/01","Government bonds",CAD,1000000,2218558,2089913
+2024-12-31,"PFCM mini bond universe","Government of Canada, Real Return, 3.00%, 2036/12/01","Government bonds",CAD,750000,1385559,1384355
+2024-12-31,"PFCM mini bond universe","United States Treasury, 3.50%, 2033/02/15","Government bonds",USD,1000000,1277296,1331783
+2024-12-31,"PFCM mini bond universe","United States Treasury, Inflation Indexed, 0.13%, 2052/02/15","Government bonds",USD,1814256,1393707,1416495
+2024-12-31,"PFCM mini bond universe","BNY Mellon, Foreign Currency Forward settlement 2025/01/22 1.37 USD:CAD PAY:REC","Derivative liabilities",USD,15227525,20868700,-1004212
+2024-12-31,"PFCM mini bond universe","Cash (Bank overdraft) (3.3%)","Cash",CAD,2776912,2776912,2776912
+2024-12-31,"PFCM mini bond universe","Other assets less liabilities (0.5%)","Cash",CAD,443151,443151,443151
+2024-12-31,"PFCM mini corp bond","Air Canada 2013-1 Pass Through Trusts A, 4.13%, 2026/11/15","Airlines",USD,1426087,1720471,2029665
+2024-12-31,"PFCM mini corp bond","Air Canada 2015-1 Pass Through Trusts A, Sinkable, 3.60%, 2028/09/15","Airlines",USD,531757,641807,744391
+2024-12-31,"PFCM mini corp bond","Air Canada 2015-2 Pass Through Trusts A, Sinkable, 4.13%, 2029/06/15","Airlines",USD,2832561,3298226,3893453
+2024-12-31,"PFCM mini corp bond","Canadian Pacific Railway Company, Callable, 3.15%, 2029/03/13","Transportation",CAD,7400000,7915318,7282012
+2024-12-31,"PFCM mini corp bond","Canopy Growth Corporation, Term Loan, 12.97%, 2027/09/20","Cannabis",USD,4003099,5213868,5006201
+2024-12-31,"PFCM mini corp bond","Chemtrade Logistics Income Fund, Convertible, Callable, 6.25%, 2027/08/31","Chemicals",CAD,1970000,2103252,2319675
+2024-12-31,"PFCM mini corp bond","Chemtrade Logistics Income Fund, Convertible, Callable, 7.00%, 2028/06/30","Chemicals",CAD,8654000,8661358,9216077
+2024-12-31,"PFCM mini corp bond","Choice Properties Real Estate Investment Trust, Callable, 3.53%, 2029/06/11","Real Estate",CAD,5800000,6240310,5710111
+2024-12-31,"PFCM mini corp bond","Choice Properties Real Estate Investment Trust, Callable, 2.98%, 2030/03/04","Real Estate",CAD,1545000,1530314,1468883
+2024-12-31,"PFCM mini corp bond","Cineplex Inc., Callable, 7.75%, 2030/03/01","Entertainment",CAD,8472072,8564276,11564378
+2024-12-31,"PFCM mini corp bond","Conifex Timber Inc., Tranche 1, Term Loan, 14.00%, 2029/06/12","Forestry",CAD,22500000,22500000,22500000
+2024-12-31,"PFCM mini corp bond","Conifex Timber Inc., Tranche 2, Term Loan, 14.00%, 2025/12/12","Forestry",CAD,2500000,2500000,2500000
+2024-12-31,"PFCM mini corp bond","Domain Building Materials Group Ltd., Callable, 7.50%, 2027/09/17","Building Materials",CAD,3500000,3500000,3555108
+2024-12-31,"PFCM mini corp bond","Dye & Durham Ltd., Convertible, Callable, 3.75%, 2026/03/01","Software",CAD,6000000,5561250,5844400
+2024-12-31,"PFCM mini corp bond","Equinox Gold Corp., Convertible, Callable, 4.75%, 2028/10/15","Mining",USD,15999999,22080786,25211297
+2024-12-31,"PFCM mini corp bond","Equinox Gold Corp., Convertible, 4.75%, 2025/09/10","Mining",USD,25000000,36631375,36654975
+2024-12-31,"PFCM mini corp bond","Fairfax Financial Holdings Limited, Callable, 4.70%, 2026/12/16","Insurance",CAD,3000000,2968500,3045765
+2024-12-31,"PFCM mini corp bond","Fairfax Financial Holdings Limited, Callable, 4.23%, 2029/06/14","Insurance",CAD,3000000,2806500,3046207
+2024-12-31,"PFCM mini corp bond","Fairfax Financial Holdings Limited, Callable, 3.95%, 2031/03/03","Insurance",CAD,21440000,20684444,21230031
+2024-12-31,"PFCM mini corp bond","Fairfax India Holdings Corporation, Callable, 5.00%, 2028/02/26","Insurance",USD,10000000,12331398,13304750
+2024-12-31,"PFCM mini corp bond","First Majestic Silver Corp., Callable, 0.38%, 2027/01/15","Mining",USD,37650000,41772304,46121127
+2024-12-31,"PFCM mini corp bond","FVI Group Inc., Convertible, Callable, 5.00%, 2027/01/15","Real Estate",USD,10000000,10522839,11784792
+2024-12-31,"PFCM mini corp bond","Obsidian Energy Ltd., Callable, 11.95%, 2027/07/27","Oil & Gas",CAD,6528000,6514064,6838800
+2024-12-31,"PFCM mini corp bond","Ontario Power Generation Inc., Callable, 3.22%, 2030/04/08","Utilities",CAD,8000000,8081674,7906641
+2024-12-31,"PFCM mini corp bond","Saturn Oil & Gas Inc., Callable, 9.63%, 2029/06/15","Oil & Gas",USD,17550000,24130590,24537877
+2024-12-31,"PFCM mini corp bond","SSR Mining Inc., Callable, 2.50%, 2039/04/01","Mining",USD,21987000,30711875,30155166
+2024-12-31,"PFCM mini corp bond","Strathcona Resources Ltd., Callable, 6.88%, 2026/08/01","Oil & Gas",CAD,1000000,1439250,1439290
+2024-12-31,"PFCM mini corp bond","Surge Energy Inc., Convertible, Callable, 8.50%, 2028/12/31","Oil & Gas",CAD,5122000,5122000,5384503
+2024-12-31,"PFCM mini corp bond","Tamarack Valley Energy Ltd., Callable, 7.25%, 2027/05/10","Oil & Gas",CAD,8350000,7916625,8468292
+2024-12-31,"PFCM mini corp bond","Telesat Canada / Telesat LLC, Callable, 4.88%, 2027/06/01","Satellite Communications",USD,1097000,689381,855183
+2024-12-31,"PFCM mini US equity","Advanced Micro Devices Inc.","Technology",USD,50000,4500000,4875000
+2024-12-31,"PFCM mini US equity","Costco Wholesale Corporation","Consumer Staples",USD,15000,7500000,7800000
+2024-12-31,"PFCM mini US equity","Eli Lilly and Company","Healthcare",USD,25000,12500000,13125000
+2024-12-31,"PFCM mini US equity","First Solar Inc.","Energy",USD,75000,15000000,16875000
+2024-12-31,"PFCM mini US equity","Intuit Inc.","Technology",USD,30000,15000000,15900000
+2024-12-31,"PFCM mini US equity","Marriott International Inc.","Consumer Discretionary",USD,40000,8000000,8400000
+2024-12-31,"PFCM mini US equity","Moody's Corporation","Financial Services",USD,25000,10000000,10625000
+2024-12-31,"PFCM mini US equity","NVIDIA Corporation","Technology",USD,20000,10000000,12000000
+2024-12-31,"PFCM mini US equity","Palo Alto Networks Inc.","Technology",USD,35000,10500000,11375000
+2024-12-31,"PFCM mini US equity","Progressive Corporation","Financial Services",USD,45000,9000000,9450000
+2024-12-31,"PFCM mini US equity","Tractor Supply Company","Consumer Discretionary",USD,30000,6000000,6450000
+2024-12-31,"PFCM mini US equity","UnitedHealth Group Inc.","Healthcare",USD,20000,10000000,10400000
+2024-12-31,"PFCM bal","PFCM mini bond universe, Class 'X'","Fund",CAD,100000000,90000000,101000000
+2024-12-31,"PFCM bal","PFCM mini US equity, Class 'X'","Fund",USD,200000000,160000000,208000000
+2024-12-31,"PFCM bal","Cash (Bank overdraft) (3.3%)","Cash",CAD,200000,200000,200000

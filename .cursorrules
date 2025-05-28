@@ -182,6 +182,10 @@ DEV:
 # deploy all workflows
 docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
 
+# to copy a file into the volume accessible by bor-db: 
+docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
+
+
 to deploy a flow with the cli:
    prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"
    
