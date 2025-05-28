@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# usage examples:
+# ./scripts/manage-containers.sh start dev
+# ./scripts/manage-containers.sh stop
+# ./scripts/manage-containers.sh clear
+# ./scripts/manage-containers.sh status
+
 # Function to display usage
 usage() {
     echo "Usage: $0 {start|stop|clear|status} [dev|prod]"
