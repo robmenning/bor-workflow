@@ -4,7 +4,7 @@ The context is an early stage project composed of docker container services, tha
 All docker containers are running in separate processes in separate docker containers and are connected by a docker network called bor-network. 
 The bor-files, bor-db, and this bor-workflow share at least one docker persistent volume to be used in ETL and data processing workflows by this project. 
 This bor-workflow service will be responsible for two sub-services: 
-  1. bor-workflow-db: a postgresql database in a docker container using the standard best practice implementation of the database required to host the prefect server using a docker volume to persist the dataf. 
+  1. bor-workflow-db: a postgresql database in a docker container using the standard best practice implementation of the database required to host the prefect server using a docker volume to persist the data. 
   2. bor-etl-agent: a service for executing prefect workflows and tasks. 
 
 Initial workflow:
@@ -118,102 +118,8 @@ The Prefect subsystem will use a containerized PostgreSQL database for orchestra
 
 This architecture ensures a simple, maintainable, and production-ready Prefect deployment, with clear separation of concerns and easy extensibility for your ETL workflows.
 
-## ########################################
-
-Technology, general:
-- This project will create a workflow management/orchestration service using the Prefect python library. 
-- A docker network called 'bor-network' is used for interserice communication between this and other docker containers in the system.
-- A docker volume called 'bor-files-data' will be used to persist Prefect's SQLite database, logs, and workflow state data between container restarts
-- the project will use modern, best practices, and industry standard technologies for web application architecture and development.
-- the project will use the latest version of Prefect, python, mysql client, and related technologies.
-
-
-## technical details 
-This project will be developed to a high standard of quality but will favour simplicity over sophistication in design and implementation.
-Advice and input from AI will be given as an expert professional using industry best practices for the technologies used. 
-All secrets will be stored in .env files using standard techniques for the technologies used. .env files will follow this naming convention:
-- .env
-- .env.development
-- .env.development.local
-- .env.production
-- .env.production.local
-
-## technologies used
-- Typescript
-- Python
-- Prefect
-- Mysql
-- Docker
-- Git
-- Github and github actions for CI/CD to production
-
-## developer details
-You are a senior, experienced full stack system architect, designer and developer with years of production code in the above listed technologies. 
-You have experience in data-centric environments including data management, etl, data validation, data processing. 
-You follow industry best practices. 
-You take pride in the quality of your work. 
-You are technically competent but prefer simple implementations. 
-You carefully consider tradeoffs to be made during design decisions. 
-
-
-## RBAC considerations
-
-
-## testing 
-tbd 
-
-## deployment 
- # to ensure prod has all of the .env files, some of which are .gitignored 
-scp bor-db/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-db/
-scp bor-api/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-api/
-scp bor-app/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-app/
-scp bor-files/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-files/
-scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-workflow/
-
-
-# DEV ITERATIONS
-
-## deploying to the Prefect server (locally, on container)
-./scripts/deploy-wf.sh
-
-
-DEV:
-1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start dev; docker ps;
-# deploy all workflows
-docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
-
-# to copy a file into the volume accessible by bor-db: 
-docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
-
-
-to deploy a flow with the cli:
-   prefect deployment build src/workflows/file_ingestion.py:file_ingestion_workflow -n "File Ingestion" -q "default"
-   
-
-This creates a deployment YAML file (e.g., file_ingestion_workflow-deployment.yaml).
-apply the deployment
-    prefect deployment apply file_ingestion_workflow-deployment.yaml
-
-start an agent:
-To actually run flows, you need a Prefect agent running and connected to your server.
-In your container, you can start an agent with:
-    prefect agent start --work-pool 'default-agent-pool'
-(You may need to create a work pool in the UI or via CLI if it doesn't exist.)
-
-4. Result
-Once deployed, your flow will appear in the "Flows" and "Deployments" sections of the UI.
-You can then trigger runs, schedule them, and monitor their status.
-
-2. git push origin <branch>
-
-PROD:
-3. logged in as robmenning.com@xenodochial-turing...
-3.a. cd ~/bor/bor-workflow
-3.b. git pull origin <branch>
-4. logged in as root@xenodochial-turing
-4.a. cd /var/www/vhosts/robmenning.com/bor/bor-workflow
-4.b. clear; *stop and start service...*; docker ps; docker logs bor-workflow
-
+# dev iterations;
+clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start dev; docker ps; sleep 2; docker logs bor-workflow
 
 
 ## running and monitoring in different environments:
@@ -226,5 +132,38 @@ PROD:
 
 
 ### Usage Instructions
+
+
+## Volume Architecture
+
+The bor-workflow service uses the following Docker volumes:
+
+1. bor-files-data (shared volume)
+   - Mounted at `/home/sftp` in bor-workflow
+   - Used for file ingestion workflows
+   - Shared with bor-db and bor-files containers
+   - Contains incoming files for ETL processing
+   - Directory Structure:
+     /home/sftp/users/<username>/inbound/  # Source for ETL files
+   - Permissions:
+     - Directories: 770 (drwxrwx---)
+     - Files: 660 (-rw-rw----)
+     - Group: mysql (required for file access)
+   - Compatibility with bor-files:
+     * Uses same mount point (/home/sftp)
+     * Follows same directory structure
+     * Maintains required permissions
+     * Requires mysql group membership
+
+2. bor-workflow-db-data
+   - Used by PostgreSQL container (bor-workflow-db)
+   - Stores Prefect orchestration state and metadata
+   - Not shared with other containers
+
+The bor-files-data volume enables:
+- File sharing between containers
+- MySQL LOAD DATA INFILE operations
+- ETL workflow file processing
+- Secure file access through group-based permissions
 
 
