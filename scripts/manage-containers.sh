@@ -125,7 +125,6 @@ start_containers() {
         -p ${ui_port}:4200 \
         -e PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@bor-workflow-db:5432/prefect" \
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
-        -e PREFECT_UI_API_URL="http://localhost:${ui_port}/api" \
         -e PREFECT_SERVER_API_HOST="0.0.0.0" \
         -e PREFECT_SERVER_API_PORT="4200" \
         -v $(pwd)/src:/opt/prefect/src \
