@@ -89,6 +89,13 @@ start_containers() {
     echo "Starting containers for environment: $env..."
     merge_env_files "$env"
     local env_file="$MERGED_ENV_FILE"
+    # Source the merged env file to get PREFECT_UI_PORT
+    if [ -f "$env_file" ]; then
+        set -a
+        source "$env_file"
+        set +a
+    fi
+    local ui_port="${PREFECT_UI_PORT:-4440}"
     # Start PostgreSQL database
     docker run -d --name bor-workflow-db \
         --network bor-network \
@@ -114,10 +121,10 @@ start_containers() {
     docker run -d --name bor-workflow \
         --network bor-network \
         --env-file "$env_file" \
-        -p 4440:4200 \
+        -p ${ui_port}:4200 \
         -e PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@bor-workflow-db:5432/prefect" \
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
-        -e PREFECT_UI_API_URL="http://localhost:4440/api" \
+        -e PREFECT_UI_API_URL="http://localhost:${ui_port}/api" \
         -e PREFECT_SERVER_API_HOST="0.0.0.0" \
         -e PREFECT_SERVER_API_PORT="4200" \
         -v $(pwd)/src:/opt/prefect/src \
