@@ -47,7 +47,7 @@ set -e
     # docker exec -it bor-workflow prefect deploy --apply
 
 # to copy a file into the volume accessible by bor-db: 
-# docker cp tests/data/holdweb-20241231.csv bor-db:/home/sftp/users/<username>/inbound/holdweb-20241231.csv
+# docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
 
 # deploy all workflows
 # docker exec -it bor-workflow prefect deploy --all

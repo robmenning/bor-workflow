@@ -66,6 +66,8 @@ The MySQL database uses a file-per-table approach with InnoDB for optimal perfor
 2. A secondary Docker volume (`bor-tablespaces`) is mounted to `/tablespaces` containing all tablespace files
 3. A shared volume (`bor-files-data`) for ETL file processing:
    - Mounted at `/var/lib/mysql-files` in bor-db for MySQL file operations
+   - Mounted at `/home/vsftpd` in bor-files for FTP uploads
+   - Mounted at `/data/ftp` in bor-workflow for ETL processing
    - Used for sharing files between containers for ETL workflows
 4. Each database uses a dedicated tablespace (`ts_bor`, `ts_borinst`, `ts_borarch`, `ts_bormeta`)
 5. Each table has its own `.ibd` file within the database directory structure
@@ -106,80 +108,91 @@ This approach offers several advantages:
 │   ├── incoming/        # New files uploaded here
 │   ├── processed/       # Files after processing
 │   └── archive/         # Archived files
-├── users/               # User-specific directories
-├── inbound/             # Inbound file processing
-└── ...                  # Other directories as needed
-
-/home/sftp/              # Symbolic link to /var/lib/mysql-files
-└── [same structure as /var/lib/mysql-files]
+└── ...
 ```
 
-### Volume Creation and Management
-Volumes are created and managed through the `db-start.sh` script:
+### Backing Up Individual Databases
+You can back up databases at the file level in multiple ways:
+
+#### 1. Using file-based backup scripts
+```bash
+# Stop the container for consistent backups
+docker stop bor-db
+
+# Back up a specific database directory 
+docker run --rm -v bor-volume:/source -v $(pwd)/backups:/backup \
+  alpine sh -c "tar -czf /backup/bor_$(date +%Y%m%d_%H%M%S).tar.gz -C /source/bor ."
+
+# Back up tablespaces
+docker run --rm -v bor-tablespaces:/source -v $(pwd)/backups:/backup \
+  alpine sh -c "tar -czf /backup/tablespaces_$(date +%Y%m%d_%H%M%S).tar.gz -C /source ."
+
+# Restart the container
+docker start bor-db
+```
+
+#### 2. Using logical backups with mysqldump
+We've created separate backup scripts for each database:
+```bash
+# Backup bor database
+./script/backup-bor.sh
+
+# Backup borinst database
+./script/backup-borinst.sh
+
+# Backup borarch database
+./script/backup-borarch.sh
+
+# Backup bormeta database
+./script/backup-bormeta.sh
+```
+
+### Verifying Data Storage
+To check how data is stored and ensure proper isolation:
 
 ```bash
-# Create volumes
-docker volume create bor-volume
-docker volume create bor-tablespaces
-docker volume create bor-files-data
+# List all database .ibd files to see physical separation
+docker exec bor-db find /var/lib/mysql -name "*.ibd" | grep -v "#" | sort
 
-# Set permissions and create directory structure
-docker run --rm -v bor-tablespaces:/tablespaces alpine sh -c "mkdir -p /tablespaces && chmod 777 /tablespaces"
-docker run --rm -v bor-files-data:/etl-files alpine sh -c "
-  mkdir -p /etl-files/ftpetl /etl-files/users /etl-files/inbound && 
-  chmod 770 /etl-files && 
-  chown mysql:mysql /etl-files && 
-  ln -s /var/lib/mysql-files /home/sftp
-"
+# Check tablespace files
+docker exec bor-db ls -la /tablespaces/
+
+# Check table storage details 
+docker exec bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} \
+  -e "SELECT s.name as tablespace_name, count(t.name) as table_count FROM information_schema.INNODB_TABLESPACES s LEFT JOIN information_schema.INNODB_TABLES t ON s.space = t.space GROUP BY s.name;"
+
+# Verify InnoDB file-per-table setting is enabled
+docker exec bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW VARIABLES LIKE 'innodb_file_per_table';"
 ```
 
-### Volume Mounting in Container
-The volumes are mounted in the container with the following configuration:
+### Database Restoration Options
+The file-per-table approach gives us flexibility in restoration:
 
+1. **Full restoration**: Restore the entire `bor-volume` for a complete recovery
+2. **Database-level restoration**: Restore individual database directories 
+3. **Table-level restoration**: Restore specific .ibd files (requires additional steps for InnoDB import)
+4. **Logical restoration**: Use the standard MySQL import process:
+   ```bash
+   docker exec -i bor-db mysql -u root -p${MYSQL_ROOT_PASSWORD} bor < ./script/backups/bor/bor_TIMESTAMP.sql
+   ```
+
+### Comprehensive Database Verification
+Use the included verification scripts to check all aspects of the database setup:
 ```bash
-docker run --name bor-db \
-  -v bor-volume:/var/lib/mysql \
-  -v bor-tablespaces:/tablespaces \
-  -v bor-files-data:/var/lib/mysql-files \
-  ...
+# Check general database configuration and data
+./script/check-db.sh
+
+# Check tablespace configuration and storage details
+./script/check-tablespaces.sh
 ```
 
-### File Access and Permissions
-The container is configured with the following file access settings:
-
-1. **Directory Permissions**:
-   - ETL files directory: 770 (drwxrwx---)
-   - Tablespaces directory: 777 (drwxrwxrwx)
-
-2. **MySQL Configuration**:
-   - secure_file_priv set to /var/lib/mysql-files
-   - local_infile enabled for LOAD DATA INFILE operations
-
-3. **Directory Structure**:
-   - /var/lib/mysql-files: Primary file access directory
-   - /home/sftp: Symbolic link to /var/lib/mysql-files
-   - Both paths are accessible for LOAD DATA INFILE operations
-
-4. **File Access**:
-   - MySQL runs as the mysql user inside the container
-   - Files should be placed in /var/lib/mysql-files for LOAD DATA INFILE operations
-   - The symbolic link at /home/sftp provides an alternative access point
-
-### Volume Considerations for Other Containers
-When developing other containers in the bor system that need to interact with these volumes:
-
-1. **Database Access**: Other containers should connect to the MySQL instance using the container name `bor-db` as the hostname
-2. **File Sharing**: For ETL workflows, mount the `bor-files-data` volume at an appropriate location in your container
-3. **Permissions**: Ensure proper permissions are set on mounted volumes
-4. **Backup Coordination**: Coordinate backup strategies with the database container to ensure data consistency
-5. **Network**: Ensure containers are on the same Docker network (`bor-network`) for proper communication
-6. **File Access**: When using LOAD DATA INFILE, files can be placed in either /var/lib/mysql-files or /home/sftp
-7. **Directory Structure**: Follow the established directory structure for file organization
+The mysql instance created in the bor-db docker container hosts the following databases: bor, borinst, borarch, and bormeta, each with its own tables and storage files.
 
 ## testing 
 # DEV ITERATION LOOP
 clear && ./script/db-stop.sh && ./script/db-start.sh --env development && docker ps && docker logs bor-db 
 clear && ./script/db-stop.sh && ./script/db-start.sh --resetall --env development && docker ps && docker logs bor-db #### be careful with --resetall as it will destroy all data
+clear && ./script/db-stop.sh && ./script/db-start.sh --env development && docker ps && docker logs bor-db
 
 #  PROD ITERATION LOOP
 clear && ./script/db-stop.sh && ./script/db-start.sh --env production && docker ps && docker logs bor-db
