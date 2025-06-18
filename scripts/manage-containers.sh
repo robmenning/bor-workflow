@@ -94,6 +94,7 @@ start_containers() {
         set -a
         source "$env_file"
         set +a
+        echo "DEBUG: PREFECT_UI_PORT is '$PREFECT_UI_PORT'"
     fi
     local ui_port="${PREFECT_UI_PORT:-4440}"
     # Start PostgreSQL database
