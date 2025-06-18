@@ -122,13 +122,9 @@ start_containers() {
         -e PREFECT_SERVER_API_PORT="4200" \
         -v $(pwd)/src:/opt/prefect/src \
         -v $(pwd)/prefect.yaml:/opt/prefect/prefect.yaml \
-        -v bor-files-data:/home/sftp \
-        --group-add 999 \
+        -v bor-files-data:/var/lib/mysql-files \
         prefecthq/prefect:3-latest \
         prefect server start --host 0.0.0.0
-
-    # Create symbolic link in bor-workflow container
-    docker exec bor-workflow ln -sf /home/sftp /var/lib/mysql-files
 
     # Wait for Prefect server to be ready
     echo "Waiting for Prefect server to be ready..."
@@ -141,17 +137,6 @@ start_containers() {
         sleep 2
     done
 
-    # Show Prefect UI URL based on environment
-    local ui_port="4440"  # default to dev
-    if [ "$env" = "prod" ]; then
-        ui_port="4640"
-    elif [ "$env" = "stage" ]; then
-        ui_port="4540"
-    fi
-    echo "================================================"
-    echo "Prefect UI is available at: http://localhost:${ui_port}/dashboard"
-    echo "================================================"
-
     # Build and start ETL agent (this is the ONLY worker)
     echo "Building ETL agent..."
     docker build -t bor-etl-agent -f docker/Dockerfile.etl-agent .
@@ -162,17 +147,13 @@ start_containers() {
         --env-file "$env_file" \
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
         -e PREFECT_AGENT_API_URL="http://bor-workflow:4200/api" \
-        -v bor-files-data:/home/sftp \
-        --group-add 999 \
+        -v bor-files-data:/var/lib/mysql-files \
         bor-etl-agent:latest \
         prefect worker start --pool default-agent-pool
 
-    # Create symbolic link in bor-etl-agent container
-    docker exec bor-etl-agent ln -sf /home/sftp /var/lib/mysql-files
-
-    # # Create necessary directories in the shared volume
-    # docker exec bor-workflow mkdir -p /data/imports
-    # docker exec bor-workflow chmod 777 /data/imports
+    # Create necessary directories in the shared volume
+    docker exec bor-workflow mkdir -p /data/imports
+    docker exec bor-workflow chmod 777 /data/imports
 
     run_prefect_deploy_build
     cleanup_env_file
@@ -189,11 +170,6 @@ stop_containers() {
 clear_containers() {
     echo "Clearing containers..."
     docker rm -f bor-workflow bor-workflow-db bor-etl-agent
-    
-    # Optionally clear volumes (commented out by default)
-    # echo "Clearing volumes..."
-    # docker volume rm bor-workflow-db-data 2>/dev/null || true
-    # Note: bor-files-data is shared and should not be cleared here
 }
 
 # Function to show container status

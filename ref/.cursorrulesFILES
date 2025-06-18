@@ -1,21 +1,25 @@
+todo:
+
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-This project will create a file storage container for use with the bor project, most specifically the bor-workflow and bor-db containers. 
-External applications and processes will be able to move files to/from this file storage container using sftp or other modern transfer protocols. 
-The storage container will be accessible from outside its docker container by sftp and over the docker network or azure network (depending on the deployment environemnt) by the bor-* containers over a private network on the host. 
-A top requirement is that this is a light and simple to admin implementation of an sftp server, file organization and file storage container.
-The context is an early stage project that has a next.js web application, a node express api, a mysql 8 database, a workflow/et. service. All are running in separate processes in separate docker containers. 
+This project will create a file storage container for use with the bor project, most specifically the bor-workflow and bor-etl containers. 
+The storage container will be accessible from outside its docker container by ftp and over the docker network from the bor-* containers. 
+A top requirement is that this is a light and simple to admin implementation of an ftp server, file organization and storage container.
+The context is an early stage project that has a next.js web application, a node express api, a mysql 8 database, a workflow service, and an etl service. All are running in separate processes in separate docker containers. 
 
-This and the other bor-* services will be deployable as docker containers in the following production environments:
-p1. linux host with docker running the docker containers, docker network, shared and non shared persistent volumes. 
-p2. azure host with AKS using the Azure container registry, ??? for the private inter-service network, and ??? for data that can be shared. 
+This service will be used initially in the following business case: a file is ftpd by an external system into the storage container; the workflow service will read the file and use the information to determine the next step in the workflow, which is to run the etl service; the etl service 
+will load the data into staging tables in the mysql 8 docker container database bor-db for further processing. 
 
-On the production environments, two instances of this (and all bor-* services) can be running (on different ports as specified below) for development, staging and production. Specifics will be handled by .env files. 
+The files in this container must be accessable to the mysql 8 process in the bor-db container on the bor-network docker network. 
 
-This service will be used initially in the following business case: a file is sftpd by an external system into this service's storage container; the bor-workflow container/service will execute a mysql command in the bor-db mysql container/service which will use 'load data infile...' to import the file into a database table, meaning that the bor-db container will need appropriate access to the files received and stored by this service. 
-In the docker on linux bare metal host deployment environment, a docker network is used for inter-service communication, and the bor-files (this) service/container, the bor-db, and bor-workflow mount the same persistent volumes as a way of sharing data. It may have to be a bit different for azure deployments. 
+The MySQL user must have the FILE privilege in this container.  
+This bor-files container should mount the directory containing the files to a location that's accessible to the MySQL server in bor-db.
+The MySQL server needs appropriate permissions to read the files
+The file path in p_FilePath should be relative to the MySQL server's file system
 
-A simple and flexible implementation is required.
+
+A simple and flexible implementation is required with transparency into the file storage and organization and easyly managet 
+FTP accounts and permissions.
 
 The service will run in peroduction in a docker container called bor-files
 System port scheme:
@@ -28,129 +32,115 @@ bof-message    4430  4530  4630  9092
 bor-workflow   4440  4540  4640  8080
 bor-etl        4450  4550  4650  8888
 bor-svc-calc   4460  4560  4660  5000
-bor-files      4470  4570  4670    22 * this container/service
+bor-files      4470  4570  4670  21 ** this container/service
 
 Technology, general:
-- This project will create an sftp server and file storage container to meet the requirements and deployment environments. 
+- This project will create a linux ftp server and local file storage container for the bor-network docker network. 
 - A docker network called 'bor-network' is used for interserice communication between this and other docker containers in the system.
 - the project will use modern, best practices, and industry standard technologies for web application architecture and development.
-- The service will mount a persistent volume to store the files which can also be mounted by other bor-* services connected to the bor-network or other private inter-container network.
-- Configure network access for both external SFTP and internal container communication
-- Use emberstack/sftp server in a Docker container, which implements a small and flexible docker image with ftps support
+- The service will mount a persistent volume to store the files which can also be mounted by other bor-* services connected to the bor-network.
+- Configure network access for both external FTP and internal container communication
+- Use a common docker image delfer/alpine-ftp-server, which implements a small and flexible docker image with vsftpd server and FTPS TLS support.
+- use a user and group to manage the ftp accounts and permissions
+- use a docker volume to store the ftp user and group data
+- use a docker volume to store the ftp server logs
+- use a docker volume to store the ftp server configuration files
 
-User management features:
-   - Add/modify users with default inbound, outbound, archive directories
-   - Add/modify user access 
+## user state
 
-Data Storage:
-- ...
+Current Implementation:
+- User credentials are stored in a persistent Docker volume (bor-files-users)
+- User database is stored in /etc/vsftpd/users/virtual_users.txt within the container
+- Default user is 'ftpetl' with password from FTP_ETL_PASS
+- User information persists across container restarts
+- User management is handled through manage-users.sh script
+- Each user gets a standardized directory structure under /home/vsftpd/<username>/
+
+Limitations:
+- Passwords are stored in plain text (can be improved with encryption)
+- No user quota enforcement
+- No user session management
+- No user activity logging
+
+Recommended Improvements:
+1. Security improvements:
+   - Encrypt stored passwords
+   - Implement proper user authentication
+   - Add user access controls
+   - Add user activity logging
+
+2. User management features:
+   - Add user quotas
+   - Add session management
+   - Add user activity logging
+   - Add user access controls
+
+Current User Storage:
+- User database: /etc/vsftpd/users/virtual_users.txt (mounted from bor-files-users volume)
+- User directories: /home/vsftpd/<username>/ (mounted from bor-files-data volume)
+- Logs: /var/log/vsftpd/ (mounted from bor-files-logs volume)
 
 Volume Information:
-- Docker Volumes:
-  1. bor-files-data
-     - Purpose: Stores all SFTP user data and files
-     - Mount point: /home/sftp
-     - Permissions: 
-       * Root directories: 755 (drwxr-xr-x)
-       * User directories: 770 (drwxrwx---)
-       * Files: 660 (-rw-rw----)
-     - Owner: ftp
-     - Group: mysql
-     - Structure:
-       /home/sftp/
-       └── users/
-           └── <username>/
-               ├── inbound/    # For incoming files (used by bor-workflow and bor-db)
-               ├── outbound/   # For outgoing files
-               └── archive/    # For archived files
-     - Compatibility Requirements:
-       * All containers (bor-files, bor-workflow, bor-db) mount at /home/sftp
-       * MySQL LOAD DATA INFILE operations use /home/sftp/users/<username>/inbound/
-       * File permissions must allow mysql group access for LOAD DATA INFILE
-     - Reference for bor-workflow:
-       * Mount volume at: /home/sftp
-       * Access files at: /home/sftp/users/<username>/inbound/
-       * Ensure mysql group membership for file access
-       * Update workflow paths to use this structure
-     - Reference for bor-db:
-       * Mount volume at: /home/sftp
-       * LOAD DATA INFILE path: /home/sftp/users/<username>/inbound/
-       * Ensure mysql group membership for file access
-       * Update MySQL configuration to use this path
+- bor-files-data: Stores FTP files and user directories
+  - Host location: /var/lib/docker/volumes/bor-files-data/_data
+  - Container mount points:
+    - bor-files: /home/vsftpd
+    - bor-workflow: /data/ftp
+    - bor-db: /var/lib/mysql-files
+  - Purpose: Shared file storage for FTP uploads and ETL processing
+  - Access: All bor-* containers on bor-network
+  - Usage examples:
+    - FTP uploads go to /home/vsftpd/<username>/incoming/
+    - MySQL LOAD DATA INFILE uses /var/lib/mysql-files/<username>/incoming/
+    - Workflow service reads from /data/ftp/<username>/incoming/
 
-  2. bor-files-host-key
-     - Purpose: Stores SSH host keys for SFTP server
-     - Mount point: /etc/ssh
-     - Contains: RSA, ECDSA, and ED25519 host keys
-     - Persists across container restarts
+- bor-files-users: Stores user database
+  - Host location: /var/lib/docker/volumes/bor-files-users/_data
+  - Container mount: /etc/vsftpd/users (bor-files container only)
+  - Purpose: FTP user authentication
+  - Access: bor-files container only
+  - Security: 600 permissions, owned by ftp user
 
-Volume Mounting/access in Other Containers:
-1. Docker Network Environment (Linux Host):
-   - All bor-* containers are connected via 'bor-network' Docker network
-   - bor-files-data volume is mounted in:
-     * bor-files container (primary) at /home/sftp
-     * bor-db container at /home/sftp
-     * bor-workflow container at /home/sftp
-   - Volume access is controlled by:
-     * File permissions (770 for directories, 660 for files)
-     * Group membership (mysql group)
-     * Container network isolation
-   - Directory Structure:
-     * All containers use the same path structure
-     * SFTP users upload to: /home/sftp/users/<username>/inbound/
-     * bor-workflow and bor-db read from: /home/sftp/users/<username>/inbound/
-     * No file movement required between directories
-   - Implementation Requirements for bor-workflow:
-     * Update Dockerfile to mount volume at /home/sftp
-     * Update workflow scripts to use /home/sftp/users/<username>/inbound/
-     * Ensure container has mysql group membership
-     * Update any hardcoded paths in workflow definitions
-   - Implementation Requirements for bor-db:
-     * Update Dockerfile to mount volume at /home/sftp
-     * Update MySQL configuration for LOAD DATA INFILE
-     * Ensure container has mysql group membership
-     * Update any stored procedures using file paths
+- bor-files-logs: Stores FTP server logs
+  - Host location: /var/lib/docker/volumes/bor-files-logs/_data
+  - Container mount: /var/log/vsftpd (bor-files container only)
+  - Purpose: FTP server logging
+  - Access: bor-files container only
 
-2. Azure Environment (AKS):
-   - Volume access details to be determined based on Azure storage options
-   - Considerations:
-     * Azure Files for persistent storage
-     * Azure Disk for high-performance requirements
-     * Network security groups for inter-service communication
-     * Azure Private Link for secure service-to-service communication
-   - Directory structure must be maintained across all environments
-   - Same mount points and permissions apply in Azure environment
+Volume Mounting in Other Containers:
+1. bor-workflow container:
+   ```bash
+   docker run ... \
+     -v bor-files-data:/data/ftp \
+     bor-workflow
+   ```
 
-3. Volume Management:
-   - Volumes are created during container initialization
-   - Volume cleanup is handled in build-and-run.sh
-   - Volume health is monitored via monitor.sh
-   - Volume usage can be checked using:
-     * docker volume inspect bor-files-data
-     * docker exec bor-files du -h /home/sftp
-     * ./scripts/monitor.sh disk
-   - Verification Steps for bor-workflow and bor-db:
-     * Check volume mount point is /home/sftp
-     * Verify mysql group membership
-     * Test file access permissions
-     * Confirm workflow/database operations can access files
+2. bor-db container:
+   ```bash
+   docker run ... \
+     -v bor-files-data:/var/lib/mysql-files \
+     bor-db
+   ```
 
-4. Volume Security:
-   - Host keys are stored in separate volume (bor-files-host-key)
-   - User data is isolated in chrooted directories
-   - File permissions enforce least privilege
-   - Group-based access control for inter-container communication
-   - Security Requirements for bor-workflow and bor-db:
-     * Must use mysql group for file access
-     * Must maintain file permissions (660)
-     * Must not modify directory permissions (770)
-     * Must not change file ownership
+File Access Examples:
+1. MySQL LOAD DATA INFILE:
+   ```sql
+   -- If file is at /home/vsftpd/ftpetl/incoming/data.csv in bor-files
+   LOAD DATA INFILE '/var/lib/mysql-files/ftpetl/incoming/data.csv' 
+   INTO TABLE staging_table;
+   ```
+
+2. Workflow Service:
+   ```typescript
+   // If file is at /home/vsftpd/ftpetl/incoming/data.csv in bor-files
+   const filePath = '/data/ftp/ftpetl/incoming/data.csv';
+   ```
 
 User Directory Structure:
-/home/<username>/
-├── inbound/    
-├── outbound/   
-└── archive/    
+/home/vsftpd/<username>/
+├── incoming/    # New files uploaded here
+├── processed/   # Files after processing
+└── archive/     # Archived files
 
 Permissions:
 - Directories: 770 (drwxrwx---)
@@ -167,10 +157,11 @@ All secrets will be stored in .env files using standard techniques for the techn
 
 ## technologies used
 - Typescript
-- emberstack/sftp in a Docker container
+- vsftpd (a lightweight FTP server) in a Docker container
 - Docker without docker compose
 - Git
 - Github and github actions for CI/CD to production
+
 
 ## developer details
 You are a senior, experiences full stack system architect, designer and developer with years of production code in the above listed technologies. 
@@ -180,19 +171,17 @@ You take pride in the quality of your work.
 You are technically competent but prefer simple implementations. 
 You carefully consider tradeoffs to be made during design decisions. 
 
-#### Usage
-# sftp a file from a local machine to the bor-file container on the same machine
 
-# sftp a file from a local machine to the bor-file container on a different machine
+#### Usage
+# ftp a file from a local machine to the bor-file container on the same machine
+
+# ftp a file from a local machine to the bor-file container on a different machine
 
 # use a file in this bor-file container by another container (e.g. bor-db) over the docker network (not FTP)
 
 ### Monitoring
 
 The monitoring system is implemented through `monitor.sh` which provides comprehensive monitoring capabilities for the FTP server:
-
-# testing requires openssh-client:
-# sudo apt-get update && sudo apt-get install -y openssh-client
 
 #### Available Commands
 - `status` - Shows container health, resource usage, and running status
@@ -225,7 +214,7 @@ The user management system is implemented through `manage-users.sh` which provid
 #### Key Features
 - Username validation (3-32 chars, alphanumeric with underscores/hyphens)
 - Password validation (minimum 8 characters)
-- Automatic directory structure creation (inbound/outbound/archive)
+- Automatic directory structure creation (incoming/processed/archive)
 - Permission management (default 755)
 - Quota management
 - User information display including:
@@ -234,12 +223,15 @@ The user management system is implemented through `manage-users.sh` which provid
   - Quota status
   - Login history
 
+#### Directory Structure
+Each user gets a standardized directory structure under `/home/vsftpd/<username>/`:
 
 ## Testing
-tests are in ./scripts/test.sh
+
+The testing system is implemented through `test-integration.sh` which provides comprehensive integration testing capabilities:
 
 #### Test Categories
-- Basic Connectivity (sFTP server reachability)
+- Basic Connectivity (FTP server reachability)
 - Authentication (login functionality)
 - File Operations (upload/download)
 - Directory Operations (create/list)
@@ -253,7 +245,7 @@ tests are in ./scripts/test.sh
 - Quota Management
 
 #### Key Features
-- Environment-aware testing (development/production)
+- Environment-aware testing (dev/stage/prod)
 - Automated test execution
 - Comprehensive test coverage
 - Detailed test reporting
@@ -274,8 +266,12 @@ tests are in ./scripts/test.sh
 - Automatic test file generation
 - Clean test environment management
 
+
 ## RBAC considerations
 tbd
+
+
+
 
 ## deployment 
 The project will be deployed using standard Docker techniques, but not using Docker Compose which is not supported in some target environments.
@@ -283,31 +279,34 @@ The project will be deployed using a CI/CD pipeline to a target environment.
  # to ensure prod has all of the .env files, some of which are .gitignored 
 scp bor-files/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.page:/var/www/vhosts/robmenning.com/bor/bor-files/
 
-# check and open PORTS on prod (docker) to make ./scripts/test-prod-external.sh run 
-$ nc -vz xenodochial-turing.108-175-7-118.plesk.page 4670 #quick port test;
-nc: connect to xenodochial-turing.108-175-7-118.plesk.page (108.175.7.118) port 4670 (tcp) failed: Connection timed out
-(port not open)
-$ sudo ufw status
-Status: inactive
-
-$ sudo iptables -L -n
-<lots of output>
-
-$ 
-
-$ 
-
-
 # DEV ITERATIONS
 DEV:
-1. clear; docker stop bor-files; docker rm bor-files; ./scripts/build-and-run.sh && echo "sleep 4"; sleep 4; docker ps; docker logs bor-files #bor-files
-2. push to git
+1. 
 
 PROD:
-3. ssh with robmenning.com account to /var/www/vhosts/robmenning.com/bor/bor-files/ and 
-$ git pull origin <dev?>
-4. ssh with root account to /var/www/vhosts/robmenning.com/bor/bor-files/ and 
-$ clear; docker stop bor-files; docker rm bor-files; ./scripts/build-and-run.sh production && echo "sleep 4"; sleep 4; docker ps; docker logs bor-files #bor-files 
+3. 
+
 
 ## running and monitoring in different environments:
 
+
+### Development Scripts
+
+
+### Docker Container Scripts
+
+
+
+
+
+## sample vsftpd.conf file:
+listen=YES
+anonymous_enable=YES
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+anon_other_write_enable=YES
+anon_root=/var/ftp/pub
+no_anon_password=YES
+pasv_enable=YES
+pasv_min_port=21100
+pasv_max_port=21110
