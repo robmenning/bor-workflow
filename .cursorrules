@@ -179,6 +179,10 @@ scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.pag
 
 DEV:
 1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start dev; docker ps;
+
+1.prod
+clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start prod; docker ps; echo "sleep 4"; sleep 4; docker logs bor-workflow
+
 # deploy all workflows
 docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
 
