@@ -77,10 +77,11 @@ run_prefect_deploy_build() {
     local env_file="/tmp/merged.env"
     echo "Copying env file into bor-workflow container..."
     docker cp "$MERGED_ENV_FILE" bor-workflow:$env_file
-    echo "Running 'prefect deployment build/apply' for all flows in bor-workflow with env file $env_file..."
+    echo "Running prefect deploy to create deployments from prefect.yaml..."
     docker exec -i bor-workflow /bin/bash -c "export \
       \$(grep -v '^#' $env_file | xargs) && \
-      prefect deploy --all"
+      cd /opt/prefect && \
+      prefect deploy --name 'Import web classfees' --name 'Import web hold'"
 }
 
 # Function to start containers
