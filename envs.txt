@@ -39,6 +39,7 @@ PREFECT_AGENT_API_URL=http://bor-workflow:4200/api
 
 PREFECT_UI_PORT=4440
 
+PREFECT_UI_API_URL=http://localhost:4440/api
 
 #################### .env.development.local ####################
 
@@ -77,6 +78,9 @@ PREFECT_API_URL=http://bor-workflow:4200/api
 PREFECT_AGENT_API_URL=http://bor-workflow:4200/api
 
 PREFECT_UI_PORT=4640
+
+PREFECT_UI_API_URL=https://prefect.robmenning.com/api
+
 
 
 #################### .env.production.local ####################

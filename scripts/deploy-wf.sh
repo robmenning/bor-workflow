@@ -1,139 +1,87 @@
 #!/bin/bash
 
-# Usage: ./scripts/deploy-wf.sh build <workflow_name>
-# Example: ./scripts/deploy-wf.sh build import_web_classfees
-
-set -e
-
-# after creating a new workflow:
-# pip install -r requirements.txt
-# python src/workflows/pdf_extraction.py
-
-
-# restart the containers
-    # ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start dev; docker ps
-
-# deploy wf
-    # ./scripts/deploy-wf.sh build import_web_classfees
-
-# start agent
-    # ./scripts/deploy-wf.sh start-agent [background|new-terminal]
-
-# start worker in foreground to see logs
-    # docker exec -it bor-workflow prefect worker start --pool default-agent-pool
-
-# monitor wf
-    # ./scripts/deploy-wf.sh status
-
-
-# add a new workflow:
-    # File: src/workflows/<workflow_name>.py
-        #    from prefect import flow
-        #    @flow
-        #    def my_new_workflow():
-        #        ...
-    # Flow function: <workflow_name>_workflow
-    # Deployment name: Human-readable, but derived from the workflow name.
-
-    # register:
-        # In src/workflows/__init__.py
-        # from .my_new_workflow import my_new_workflow
-        # register_workflow("my_new_workflow", my_new_workflow)
-
-    # deploy:
-        # ./scripts/deploy-wf.sh build my_new_workflow
-
-    # or
-    # docker exec -it bor-workflow prefect deploy --apply
-
-# to copy a file into the volume accessible by bor-db: 
-# docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
-
-# deploy all workflows
-# docker exec -it bor-workflow prefect deploy --all
-
-# Set environment variables with defaults
-export PREFECT_API_URL=${PREFECT_API_URL:-"http://bor-workflow:4200/api"}
-# Set environment variables with defaults
-export PREFECT_API_URL=${PREFECT_API_URL:-"http://bor-workflow:4200/api"}
-export PREFECT_WORK_POOL=${PREFECT_WORK_POOL:-"default-agent-pool"}
+# Script to deploy Prefect workflows manually
+# Usage: ./scripts/deploy-wf.sh [dev|prod]
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 {build|start-agent|deploy|list|status} [options]"
-    echo "Commands:"
-    echo "  build <workflow_name>    - Build a workflow deployment"
-    echo "  start-agent [mode]       - Start the Prefect agent"
-    echo "  deploy <workflow_name>   - Deploy a workflow"
-    echo "  list                     - List all deployments"
-    echo "  status                   - Show deployment status"
-    echo ""
-    echo "Environment variables:"
-    echo "  PREFECT_API_URL         - Prefect API URL (default: http://bor-workflow:4200/api)"
-    echo "  PREFECT_WORK_POOL       - Work pool name (default: default-agent-pool)"
+    echo "Usage: $0 [dev|prod]"
+    echo "  Deploys all workflows defined in prefect.yaml"
     exit 1
 }
 
-# Function to build deployment
-build_deployment() {
-    echo "Building and applying deployment(s) from prefect.yaml using pool $PREFECT_WORK_POOL"
-    docker exec -e PREFECT_API_URL -e PREFECT_WORK_POOL -it bor-workflow prefect deploy
+# Function to merge env files for the current environment
+merge_env_files() {
+    local env=${1:-prod}
+    local env_file=".env"
+    local env_main=".env.production"
+    local env_local=".env.production.local"
+    local merged_file=".env.production.merged"
+    if [ "$env" = "dev" ]; then
+        env_main=".env.development"
+        env_local=".env.development.local"
+        merged_file=".env.development.merged"
+    fi
+    echo "Merging $env_file, $env_main, and $env_local into $merged_file..."
+    > "$merged_file"
+    if [ -f "$env_file" ]; then
+        cat "$env_file" >> "$merged_file"
+    fi
+    if [ -f "$env_main" ]; then
+        cat "$env_main" >> "$merged_file"
+    fi
+    if [ -f "$env_local" ]; then
+        cat "$env_local" >> "$merged_file"
+    fi
+    if [ ! -s "$merged_file" ]; then
+        echo "No env files found to merge!"
+        exit 1
+    fi
+    export MERGED_ENV_FILE="$merged_file"
 }
 
-# Function to start agent
-start_agent() {
-    local mode=$1
+# Function to clean up merged env file
+cleanup_env_file() {
+    if [ -n "$MERGED_ENV_FILE" ] && [ -f "$MERGED_ENV_FILE" ]; then
+        rm "$MERGED_ENV_FILE"
+        echo "Cleaned up $MERGED_ENV_FILE"
+    fi
+}
+
+# Function to deploy flows
+deploy_flows() {
+    local env=${1:-prod}
+    echo "Deploying workflows for environment: $env..."
     
-    echo "Starting agent with work pool: $PREFECT_WORK_POOL"
-    case "$mode" in
-        "background")
-            echo "Starting Prefect worker in background..."
-            docker exec -d bor-workflow bash -c "prefect worker start --pool '$PREFECT_WORK_POOL' > /var/log/prefect-worker.log 2>&1"
-            echo "Worker started in background. Check logs with: docker exec bor-workflow cat /var/log/prefect-worker.log"
-            ;;
-        "new-terminal")
-            if command -v gnome-terminal &> /dev/null; then
-                gnome-terminal -- bash -c "docker exec -it bor-workflow prefect worker start --pool '$PREFECT_WORK_POOL'; exec bash"
-            elif command -v xterm &> /dev/null; then
-                xterm -e "docker exec -it bor-workflow prefect worker start --pool '$PREFECT_WORK_POOL'; exec bash" &
-            else
-                echo "No supported terminal emulator found. Running in current terminal..."
-                docker exec -it bor-workflow prefect worker start --pool "$PREFECT_WORK_POOL"
-            fi
-            ;;
-        *)
-            echo "Starting Prefect worker in current terminal..."
-            echo "Note: This will keep the terminal occupied. Use Ctrl+C to stop."
-            docker exec -it bor-workflow prefect worker start --pool "$PREFECT_WORK_POOL"
-            ;;
-    esac
-}
-
-# Function to list deployments
-list_deployments() {
-    echo "Listing all deployments..."
-    docker exec bor-workflow prefect deployment ls
-}
-
-# Function to show deployment status
-show_status() {
-    echo "Deployment status:"
-    docker exec bor-workflow prefect deployment ls --json | jq '.[] | {name: .name, schedule: .schedule, tags: .tags}'
+    # Check if containers are running
+    if ! docker ps | grep -q bor-workflow; then
+        echo "Error: bor-workflow container is not running!"
+        echo "Please start containers first with: ./scripts/manage-containers.sh start $env"
+        exit 1
+    fi
+    
+    merge_env_files "$env"
+    local env_file="/tmp/merged.env"
+    
+    echo "Copying env file into bor-workflow container..."
+    docker cp "$MERGED_ENV_FILE" bor-workflow:$env_file
+    
+    echo "Deploying workflows from prefect.yaml..."
+    docker exec -i bor-workflow /bin/bash -c "export \
+      \$(grep -v '^#' $env_file | xargs) && \
+      prefect deploy"
+    
+    cleanup_env_file
+    echo "Workflow deployment completed!"
 }
 
 # Main script logic
 case "$1" in
-    build)
-        build_deployment
+    dev|prod)
+        deploy_flows "$1"
         ;;
-    start-agent)
-        start_agent "$2"
-        ;;
-    list)
-        list_deployments
-        ;;
-    status)
-        show_status
+    "")
+        deploy_flows "prod"
         ;;
     *)
         usage
