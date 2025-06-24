@@ -1,5 +1,5 @@
 date,fund_name,sec_name,sector,currency,units,cost,mv
-2024-12-31,"PFCM mini bond universe","PFCM mini corp bond, Class 'X'","Fund",CAD,1493549,16371364,17407908
+2024-12-31,"PFCM mini bond universe","PFCM mini corp bond, Class X","Fund",CAD,1493549,16371364,17407908
 2024-12-31,"PFCM mini bond universe","Cameco Corporation, Callable, 2.95%, 2027/10/21","Mining",CAD,2650000,2514057,2605561
 2024-12-31,"PFCM mini bond universe","Canadian National Railway Company, Callable, 3.20%, 2028/07/31","Transportation",CAD,2000000,1899600,1982807
 2024-12-31,"PFCM mini bond universe","Canadian Pacific Railway Company, Callable, 3.15%, 2029/03/13","Transportation",CAD,1100000,1178033,1062461
@@ -63,6 +63,8 @@ date,fund_name,sec_name,sector,currency,units,cost,mv
 2024-12-31,"PFCM mini corp bond","Surge Energy Inc., Convertible, Callable, 8.50%, 2028/12/31","Oil & Gas",CAD,5122000,5122000,5384503
 2024-12-31,"PFCM mini corp bond","Tamarack Valley Energy Ltd., Callable, 7.25%, 2027/05/10","Oil & Gas",CAD,8350000,7916625,8468292
 2024-12-31,"PFCM mini corp bond","Telesat Canada / Telesat LLC, Callable, 4.88%, 2027/06/01","Satellite Communications",USD,1097000,689381,855183
+2024-12-31,"PFCM mini corp bond","Fairfax Financial Holdings Limited, 90D 2025/06/30","Insurance",CAD,400000,399000,4015000
+2024-12-31,"PFCM mini corp bond","ABC short term credit, Class X","Fund",CAD,10000000,100100000,100300000
 2024-12-31,"PFCM mini US equity","Advanced Micro Devices Inc.","Technology",USD,50000,4500000,4875000
 2024-12-31,"PFCM mini US equity","Costco Wholesale Corporation","Consumer Staples",USD,15000,7500000,7800000
 2024-12-31,"PFCM mini US equity","Eli Lilly and Company","Healthcare",USD,25000,12500000,13125000
@@ -75,6 +77,10 @@ date,fund_name,sec_name,sector,currency,units,cost,mv
 2024-12-31,"PFCM mini US equity","Progressive Corporation","Financial Services",USD,45000,9000000,9450000
 2024-12-31,"PFCM mini US equity","Tractor Supply Company","Consumer Discretionary",USD,30000,6000000,6450000
 2024-12-31,"PFCM mini US equity","UnitedHealth Group Inc.","Healthcare",USD,20000,10000000,10400000
-2024-12-31,"PFCM bal","PFCM mini bond universe, Class 'X'","Fund",CAD,100000000,90000000,101000000
-2024-12-31,"PFCM bal","PFCM mini US equity, Class 'X'","Fund",USD,200000000,160000000,208000000
+2024-12-31,"PFCM bal","PFCM mini bond universe, Class X","Fund",CAD,100000000,90000000,101000000
+2024-12-31,"PFCM bal","PFCM mini US equity, Class X","Fund",USD,200000000,160000000,208000000
 2024-12-31,"PFCM bal","Cash (Bank overdraft) (3.3%)","Cash",CAD,200000,200000,200000
+2024-12-31,"ABC short term credit","Government of Canada, TBill","Government mmkt",CAD,350000000,335415500,341116900
+2024-12-31,"ABC short term credit","Canadian National Railway Company CP 2025/07/31","Transportation",CAD,200000000,189960000,198280700
+2024-12-31,"ABC short term credit","Duke Energy Corp., BA 2025/06/15","Utilities",USD,10000000,147645600,148057400
+2024-12-31,"ABC short term credit","Fairfax Financial Holdings Limited, 90D 2025/06/30","Insurance",CAD,170000000,179643600,198411500

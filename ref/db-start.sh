@@ -124,15 +124,20 @@ fi
 echo "Setting up Docker volumes..."
 docker volume create bor-volume 2>/dev/null || true
 docker volume create bor-tablespaces 2>/dev/null || true
-docker volume create bor-etl-files 2>/dev/null || true  # New shared volume for ETL files
+docker volume create bor-files-data 2>/dev/null || true  # Shared volume for ETL files
 
 # Step 3.5: Ensure proper permissions on volumes
 echo "Setting proper permissions on volumes..."
 # Create a temporary container to set permissions on the tablespaces volume
 docker run --rm -v bor-tablespaces:/tablespaces alpine sh -c "mkdir -p /tablespaces && chmod 777 /tablespaces"
-# Set permissions for ETL files volume
-docker run --rm -v bor-etl-files:/etl-files alpine sh -c "mkdir -p /etl-files && chmod 777 /etl-files"
-echo "✓ Permissions set"
+
+# Set permissions and create directory structure for ETL files volume
+echo "Setting up ETL files volume structure..."
+docker run --rm -v bor-files-data:/etl-files alpine sh -c "
+  mkdir -p /etl-files/ftpetl/incoming /etl-files/ftpetl/processed /etl-files/ftpetl/archive && 
+  chmod -R 777 /etl-files
+"
+echo "✓ Permissions and directory structure set"
 
 # Step 4: Create backup directories
 echo "Setting up backup directories..."
@@ -180,7 +185,7 @@ if [ "$INITIALIZE" = true ]; then
     -e MYSQL_DATABASE=bor \
     -v bor-volume:/var/lib/mysql \
     -v bor-tablespaces:/tablespaces \
-    -v bor-etl-files:/var/lib/mysql-files \
+    -v bor-files-data:/var/lib/mysql-files \
     -v "$TEMP_INIT_DIR":/docker-entrypoint-initdb.d \
     -v "$(pwd)/script/backups/bor":/backups/bor \
     -v "$(pwd)/script/backups/borinst":/backups/borinst \
@@ -196,7 +201,7 @@ else
     -e MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}" \
     -v bor-volume:/var/lib/mysql \
     -v bor-tablespaces:/tablespaces \
-    -v bor-etl-files:/var/lib/mysql-files \
+    -v bor-files-data:/var/lib/mysql-files \
     -v "$(pwd)/script/backups/bor":/backups/bor \
     -v "$(pwd)/script/backups/borinst":/backups/borinst \
     -v "$(pwd)/script/backups/borarch":/backups/borarch \
@@ -204,6 +209,7 @@ else
     -v "$(pwd)/script/config/my.cnf":/etc/mysql/conf.d/my.cnf \
     -d bor-mysql:8.0
 fi
+
 
 # Step 7: Wait for MySQL to initialize
 echo "Waiting for MySQL to initialize (40 seconds)... THIS IS IMPORTANT 10 SECONDS ISNT ENOUGH"

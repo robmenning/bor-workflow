@@ -189,8 +189,20 @@ docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage
 
 # to copy a file into the volume accessible by bor-db: 
 docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
-docker exec -it ls -lat bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
-                                                 
+# Check if the file exists in the expected location
+docker exec bor-db ls -la /var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
+# Check the file contents to ensure it copied correctly
+docker exec bor-db head -10 /var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
+docker exec bor-db head -10 /var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
+
+
+# verify table
+docker exec bor-db mysql -u borETLSvc -pu67nomZyNg -e "USE borarch; DESCRIBE holdweb;"
+
+
+# verify sproc
+docker exec bor-db mysql -u borETLSvc -pu67nomZyNg -e "SHOW CREATE PROCEDURE bormeta.usp_holdweb_process\G"
+                                           
 
 # to check if file is in the correct place for the intended flow:
 docker exec -it bor-db ls -l /var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
