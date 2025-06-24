@@ -1,0 +1,35 @@
+# prefect.yaml
+version: 2.0
+deployments:
+  - name: Import web classfees
+    entrypoint: src/workflows/import_web_classfees.py:import_web_classfees_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      file_path: "/var/lib/mysql-files/ftpetl/incoming/fund-class-fees.csv"
+      db_host: "{{ $DB_HOST }}"
+      db_port: "{{ $DB_PORT }}"
+      db_user: "{{ $DB_USER }}"
+      db_password: "{{ $DB_PASSWORD }}"
+      db_name: "{{ $DB_NAME }}"
+      delimiter: ","
+      quote_char: "\""
+      line_terminator: "\n"
+      skip_lines: 1
+      truncate_before_load: true
+  - name: Import web hold
+    entrypoint: src/workflows/import_web_hold.py:import_web_hold_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      source_file: "/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv"
+      db_host: "{{ $DB_HOST }}"
+      db_port: "{{ $DB_PORT }}"
+      db_user: "{{ $DB_USER }}"
+      db_password: "{{ $DB_PASSWORD }}"
+      db_name: "{{ $DB_NAME }}"
+      delimiter: ","
+      quote_char: "\""
+      line_terminator: "\n"
+      skip_lines: 1
+      truncate_before_load: true

@@ -1,0 +1,104 @@
+Pender Bond Universe Fund
+Schedule of Investment Portfolio
+December 31, 2024
+
+Issue
+currency
+Number of units /
+ Face value ($)
+Cost
+($)
+Fair value
+($)
+Mutual funds:
+Pender Corporate Bond Fund, Class 'O' CAD 1,493,549 16,371,364 17,407,908
+Total mutual funds (20.7%) 16,371,364 17,407,908
+Corporate bonds:
+Canada (32.2%):
+Cameco Corporation, Callable, 2.95%, 2027/10/21 CAD 2,650,000 2,514,057 2,605,561
+Canadian National Railway Company, Callable, 3.20%,
+2028/07/31
+CAD 2,000,000 1,899,600 1,982,807
+Canadian Pacific Railway Company, Callable, 3.15%,
+2029/03/13
+CAD 1,100,000 1,178,033 1,082,461
+Choice Properties Real Estate Investment Trust, Callable,
+2.85%, 2027/05/21
+CAD 1,100,000 1,139,660 1,082,507
+Choice Properties Real Estate Investment Trust, Callable,
+2.98%, 2030/03/04
+CAD 1,955,000 1,848,226 1,858,684
+Fairfax Financial Holdings Limited, Callable, 4.70%,
+2026/12/16
+CAD 2,200,000 2,440,282 2,242,361
+Fairfax Financial Holdings Limited, Callable, 3.95%,
+2031/03/03
+CAD 2,000,000 1,769,436 1,984,115
+Loblaw Companies Limited, Callable, 4.49%, 2028/12/11 CAD 2,500,000 2,478,037 2,582,017
+Loblaw Companies Limited, Callable, 2.28%, 2030/05/07 CAD 2,000,000 1,733,300 1,865,288
+Thomson Reuters Corp., Callable, 2.24%, 2025/05/14 CAD 4,700,000 4,596,550 4,678,818
+Waste Management of Canada Corporation, Callable,
+2.60%, 2026/09/23
+CAD 5,000,000 4,721,090 4,937,887
+26,318,271 26,902,506
+United States (23.5%):
+Duke Energy Corp., Convertible, 4.13%, 2026/04/15 USD 1,000,000 1,476,456 1,480,574
+Esperion Therapeutics Inc., Convertible, Callable, 5.75%,
+2030/06/15
+USD 1,000,000 1,431,250 1,430,263
+FirstEnergy Corp., Callable, 2.65%, 2030/03/01 USD 2,000,000 2,499,764 2,550,307
+McDonald's Corporation, Callable, 4.86%, 2031/05/21 CAD 4,000,000 4,174,880 4,177,672
+Occidental Petroleum Corporation, Callable, 4.10%,
+2047/02/15
+USD 2,000,000 1,841,523 1,979,727
+Ohio Edison Co., Callable, 8.25%, 2038/10/15 USD 750,000 1,326,042 1,335,111
+OPKO Health Inc., Convertible, 3.75%, 2029/01/15 USD 500,000 668,325 1,004,418
+PNM Resources Inc., Convertible, Callable, 5.75%,
+2054/06/01
+USD 1,000,000 1,340,097 1,671,307
+Verisign, Inc., Callable, 4.75%, 2027/07/15 USD 2,000,000 2,551,428 2,872,144
+Verisign, Inc., Callable, 2.70%, 2031/06/15 USD 1,000,000 1,179,545 1,233,462
+18,489,310 19,734,985
+Foreign (6.9%):
+National Grid Electricity Transmission PLC, Callable,
+2.30%, 2029/06/22
+CAD 2,000,000 1,850,140 1,886,212
+National Grid Electricity Transmission PLC, Callable,
+5.22%, 2031/09/16
+CAD 2,000,000 2,124,900 2,121,712
+Petróleos Mexicanos, Callable, 6.75%, 2047/09/21 USD 1,800,000 1,494,760 1,780,702
+5,469,800 5,788,626
+Total corporate bonds (62.6%) 50,277,381 52,426,117
+Pender Bond Universe Fund
+Schedule of Investment Portfolio (cont’d)
+December 31, 2024
+The accompanying notes are an integral part of these financial statements. 8
+Issue
+currency
+Number of units /
+ Face value ($)
+Cost
+($)
+Fair value
+($)
+Government bonds:
+Government of Canada, 2.25%, 2029/06/01 CAD 3,500,000 3,354,155 3,411,169
+Government of Canada, 2.75%, 2033/06/01 CAD 2,300,000 2,154,027 2,229,514
+Government of Canada, Real Return, 4.00%, 2031/12/01 CAD 1,000,000 2,218,558 2,089,913
+Government of Canada, Real Return, 3.00%, 2036/12/01 CAD 750,000 1,385,559 1,384,355
+United States Treasury, 3.50%, 2033/02/15 USD 1,000,000 1,277,296 1,337,783
+United States Treasury, Inflation Indexed, 0.13%, 2052/02/15 USD 1,814,256 1,393,707 1,416,495
+Total government bonds (14.1%) 11,783,302 11,869,229
+Total investments (97.4%) 78,432,047 81,703,254
+Contract
+rate Pay Receive
+Unrealized gain
+(loss)
+Derivative liabilities:
+BNY Mellon, Foreign Currency Forward, settlement
+2025/01/22
+1.37 USD 15,227,525 CAD 20,868,700 (1,004,212)
+Total derivative liabilities (‑1.2%) (1,004,212)
+Cash (Bank overdraft) (3.3%) 2,776,912
+Other assets less liabilities (0.5%) 443,151
+Total net assets attributable to holders of redeemable units (100.0%) 83,919,105

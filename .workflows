@@ -1,0 +1,184 @@
+# BOR Workflow Service - Workflow Documentation
+
+## file_ingestion.py ################################################################################## start
+
+
+### Overview
+The File Ingestion Workflow manages the process of ingesting files into the BOR system. It handles file transfer from the bor-files container to 
+the bor-db container using the 'LOAD DATA INFILE' command, the data is then processed by a stored procedure.
+
+### Business Case
+- External systems upload files to the bor-files container via FTP
+- The workflow service monitors for new files
+- Files are processed and loaded into the bormeta database which serves as a staging area for further validation and processing on the way to the 
+final table(s) in databases such as borinst. 
+- Data is made available for further processing
+
+### Technical Components
+
+#### 1. Tasks
+- `check_file_in_volume`: Verifies file existence in shared volume's incoming/ directory
+  - Input: file_path (str) relative to root of the volume
+  - Output: bool
+  - Caching: Enabled (1 hour expiration)
+
+- `load_file_to_borarch`: Loads file into borarch.FundClassFee using 'LOAD DATA INFILE' command using mounted volume shared with the bor-files and bor-deb containers
+  - Input: file_path, db_host, db_port, db_user, db_pass, db_name
+  - Output: bool
+  - Retries: 3 attempts, 60-second delay
+
+- `move_file_to_processed`: Moves file using direct volume access to the bor-files container processed/ directory from the incoming/ directory
+  - Input: file_path, ftp_user, ftp_pass
+  - Output: bool
+  - Retries: 3 attempts, 60-second delay
+
+- `execute_stored_procedure`: Runs database procedure
+  - Input: proc_name, db_host, db_port, db_user, db_pass, db_name
+  - Output: bool
+  - Retries: 3 attempts, 60-second delay
+
+#### 2. Flow
+- Name: "File Ingestion Workflow"
+- Entry Point: file_ingestion_workflow()
+- Parameters:
+  - file_path (str): Path to the file relative to the root of the volume in the bor-files container
+  - ftp_host (str, default="bor-files"): FTP server hostname
+  - ftp_port (int, default=21): FTP server port
+  - ftp_user (str, optional): FTP username
+  - ftp_pass (str, optional): FTP password
+  - db_host (str, default="bor-db"): Database hostname
+  - db_port (int, default=3306): Database port
+  - db_user (str, optional): Database username
+  - db_pass (str, optional): Database password
+  - db_name (str, default="bormeta"): Database name
+  - proc_name (str, default="usp_FileClassFee_Load"): Stored procedure name
+  
+#### 3.a. Dependencies external
+- Python 3.11+
+- Prefect
+- mysql-connector-python
+- python-dotenv
+
+#### 3.b. Dependencies workflows
+n/a
+
+#### 4. Environment Variables
+Required:
+- FTP_ETL_USER: FTP username
+- FTP_ETL_PASS: FTP password
+- DB_ALL_SVC_USER: Database username
+- DB_ALL_SVC_USER_PASSWORD: Database password
+
+#### 5. File System Requirements
+- Access to bor-files-data volume
+- Mount point: /home/vsftpd
+- Directory structure:
+  ```
+  /home/vsftpd/<ftp_user>/
+  ├── incoming/    # New files
+  ├── processed/   # Processed files
+  └── archive/     # Archived files
+  ```
+
+#### 6. Database Requirements
+- MySQL 8.0+
+- Stored procedure: bormeta.usp_FundClass_Load
+- User permissions: FILE privilege for bulk loading
+
+### Implementation Steps
+1. Create workflow file (src/workflows/file_ingestion.py)
+2. Implement tasks with proper error handling and retries
+3. Create main flow with parameter validation
+4. Add environment variable support
+5. Implement both FTP and direct access methods
+6. Add comprehensive testing
+
+### Testing
+Location: tests/test_file_ingestion.py
+Test Cases:
+1. File not found scenario
+2. DB connection failure scenario
+3. File load failure scenario
+4. File move failure scenario
+5. Stored procedure failure scenario
+
+### Error Handling
+- File existence verification
+- FTP connection retries
+- Database connection retries
+- File move operations
+- Stored procedure execution
+
+### Monitoring
+- Task execution status
+- File transfer success/failure
+- Database procedure execution
+- Error logging
+
+### Security Considerations
+- Non-root user execution
+- Secure credential handling
+- File permission management
+- Database access control
+
+### Performance Considerations
+- Caching for file checks
+- Retry mechanisms for network operations
+- Direct file access optimization
+- Database connection pooling
+
+### Maintenance
+- Regular log review
+- Error pattern monitoring
+- Performance metrics tracking
+- Security updates
+
+### Future Enhancements
+1. File validation before processing
+2. Archive management
+3. Notification system
+4. Performance optimization
+5. Enhanced error reporting
+
+## file_ingestion.py ################################################################################## end
+
+## new.py ################################################################################## start
+
+### Overview
+
+### Business Case
+- 
+
+### Technical Components
+
+#### 1. Tasks
+
+
+
+#### 2. Flow
+
+#### 3. Dependencies
+
+#### 4. Environment Variables
+
+#### 5. File System Requirements
+
+#### 6. Database Requirements
+
+### Implementation Steps
+
+### Testing
+
+### Error Handling
+
+### Monitoring
+
+### Security Considerations
+
+### Performance Considerations
+
+### Maintenance
+
+### Future Enhancements
+
+## new.py ################################################################################## end
