@@ -72,4 +72,45 @@ Required environment variables are defined in:
 
 ## Production Deployment
 
-See deployment section in project documentation for production deployment instructions.
+### Docker Deployment (Current)
+
+The current deployment uses three separate containers managed by the `manage-containers.sh` script:
+
+```bash
+# Start with official Prefect image (default)
+./scripts/manage-containers.sh start prod
+
+# Start with custom Docker image (for testing)
+./scripts/manage-containers.sh start prod --use-custom-image
+```
+
+### Azure/Kubernetes Deployment
+
+For Azure Container Registry and Kubernetes deployment:
+
+1. Build the image:
+```bash
+./scripts/build-image.sh [tag] [registry]
+# Example: ./scripts/build-image.sh v1.0.0 myregistry.azurecr.io/
+```
+
+2. Push to Azure Container Registry:
+```bash
+docker push myregistry.azurecr.io/bor-workflow:v1.0.0
+```
+
+3. Deploy to Kubernetes using the provided manifests in the infrastructure repository.
+
+### Backward Compatibility
+
+The new Dockerfile maintains full backward compatibility:
+- Existing `manage-containers.sh` scripts continue to work unchanged
+- New `--use-custom-image` flag allows testing the custom image
+- All existing workflows and configurations remain compatible
+
+### Testing
+
+Run backward compatibility tests:
+```bash
+./scripts/test-backward-compatibility.sh
+```

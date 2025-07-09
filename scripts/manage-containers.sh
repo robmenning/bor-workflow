@@ -8,7 +8,8 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 {start|stop|clear|status} [dev|prod]"
+    echo "Usage: $0 {start|stop|clear|status} [dev|prod] [--use-custom-image]"
+    echo "  --use-custom-image: Use the custom Dockerfile instead of official Prefect image"
     exit 1
 }
 
@@ -87,6 +88,7 @@ run_prefect_deploy_build() {
 # Function to start containers
 start_containers() {
     local env=${1:-prod}
+    local use_custom_image=${2:-false}
     echo "Starting containers for environment: $env..."
     merge_env_files "$env"
     local env_file="$MERGED_ENV_FILE"
@@ -98,6 +100,7 @@ start_containers() {
         echo "DEBUG: PREFECT_UI_PORT is '$PREFECT_UI_PORT'"
     fi
     local ui_port="${PREFECT_UI_PORT:-4440}"
+    
     # Start PostgreSQL database
     docker run -d --name bor-workflow-db \
         --network bor-network \
@@ -119,6 +122,17 @@ start_containers() {
     # Initialize PostgreSQL
     init_postgres
 
+    # Build custom image if requested
+    local prefect_image="prefecthq/prefect:3-latest"
+    local volume_mounts="-v $(pwd)/src:/opt/prefect/src -v $(pwd)/prefect.yaml:/opt/prefect/prefect.yaml"
+    
+    if [ "$use_custom_image" = "true" ]; then
+        echo "Building custom Prefect image..."
+        docker build -t bor-workflow:latest .
+        prefect_image="bor-workflow:latest"
+        volume_mounts=""  # No volume mounts needed since code is baked into image
+    fi
+
     # Start Prefect server (do NOT start a worker here)
     docker run -d --name bor-workflow \
         --network bor-network \
@@ -128,10 +142,9 @@ start_containers() {
         -e PREFECT_API_URL="http://bor-workflow:4200/api" \
         -e PREFECT_SERVER_API_HOST="0.0.0.0" \
         -e PREFECT_SERVER_API_PORT="4200" \
-        -v $(pwd)/src:/opt/prefect/src \
-        -v $(pwd)/prefect.yaml:/opt/prefect/prefect.yaml \
+        $volume_mounts \
         -v bor-files-data:/var/lib/mysql-files \
-        prefecthq/prefect:3-latest \
+        $prefect_image \
         prefect server start --host 0.0.0.0
 
     # Wait for Prefect server to be ready
@@ -189,7 +202,15 @@ show_status() {
 # Main script logic
 case "$1" in
     start)
-        start_containers "$2"
+        # Check for --use-custom-image flag
+        local use_custom_image="false"
+        for arg in "$@"; do
+            if [ "$arg" = "--use-custom-image" ]; then
+                use_custom_image="true"
+                break
+            fi
+        done
+        start_containers "$2" "$use_custom_image"
         ;;
     stop)
         stop_containers
