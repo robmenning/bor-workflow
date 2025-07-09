@@ -27,9 +27,12 @@ ENV PYTHONPATH=/opt/prefect
 # Create necessary directories
 RUN mkdir -p /data/imports && chmod 777 /data/imports
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:4200/api/health || exit 1
+# Expose the correct port
+EXPOSE 8080
 
-# Default command - can be overridden for different deployment scenarios
-CMD ["prefect", "server", "start", "--host", "0.0.0.0"] 
+# Health check with correct port
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Default command with explicit port
+CMD ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "8080"]
