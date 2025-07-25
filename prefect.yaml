@@ -49,4 +49,4 @@ deployments:
       quote_char: "\""
       line_terminator: "\n"
       skip_lines: 1
-      truncate_before_load: true
+      truncate_before_load: false
