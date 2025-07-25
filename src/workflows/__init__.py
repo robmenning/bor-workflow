@@ -18,5 +18,8 @@ def get_workflow(name: str) -> Type[Flow]:
     return WORKFLOW_REGISTRY[name]
 
 # Import and register workflows
-from .import_web_classfees import import_web_classfees_workflow
-register_workflow("import_web_classfees", import_web_classfees_workflow) 
+from .import_web_classfees import import_web_classfees_flow
+register_workflow("import_web_classfees", import_web_classfees_flow)
+
+from .mellon_holdings_etl import mellon_holdings_etl_flow
+register_workflow("mellon-holdings-etl", mellon_holdings_etl_flow) 
