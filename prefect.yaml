@@ -33,3 +33,20 @@ deployments:
       line_terminator: "\n"
       skip_lines: 1
       truncate_before_load: true
+  - name: Mellon Holdings ETL
+    entrypoint: src/workflows/mellon_holdings_etl.py:mellon_holdings_etl_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      source_files: ["/var/lib/mysql-files/ftpetl/incoming/mellon-660600017-AAD-20250414.csv"]
+      db_host: "{{ $DB_HOST }}"
+      db_port: "{{ $DB_PORT }}"
+      db_user: "{{ $DB_USER }}"
+      db_password: "{{ $DB_PASSWORD }}"
+      db_name: "{{ $DB_NAME }}"
+      target_dir: "/var/lib/mysql-files/ftpetl/incoming/"
+      delimiter: ","
+      quote_char: "\""
+      line_terminator: "\n"
+      skip_lines: 1
+      truncate_before_load: true
