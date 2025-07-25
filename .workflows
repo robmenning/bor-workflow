@@ -142,43 +142,175 @@ Test Cases:
 
 ## file_ingestion.py ################################################################################## end
 
-## new.py ################################################################################## start
+## mellon_holdings_etl.py ################################################################################## start
 
 ### Overview
+The Mellon Holdings ETL Workflow processes Mellon holdings CSV files and loads them into the BOR system databases. It handles file loading, data transformation, and account-specific data cleanup to ensure data integrity across multiple file imports.
 
 ### Business Case
-- 
+- Mellon provides holdings data in CSV format for multiple accounts
+- Files are uploaded to the bor-files container via FTP
+- The workflow processes each file and loads data into the borarch.MellonHoldingsStaging table
+- Account-specific cleanup ensures no duplicate or stale data for the same account
+- Data is made available for further processing and analysis
 
 ### Technical Components
 
 #### 1. Tasks
+- `delete_existing_account_data`: Deletes existing records for accounts found in the incoming file
+  - Input: file_path (str), db_config (dict)
+  - Output: bool
+  - Purpose: Ensures clean data by removing old records for the same account
 
+- `update_file_tracking`: Updates the MellonFileImport tracking table
+  - Input: file_source (str), db_config (dict)
+  - Output: bool
+  - Purpose: Records file import attempts and status
 
+- `load_data_to_staging`: Inherited from BaseIngestionWorkflow, loads CSV data using 'LOAD DATA INFILE'
+  - Input: file_path, database connection parameters, field mappings, transformations
+  - Output: bool
+  - Retries: 3 attempts, 60-second delay
 
 #### 2. Flow
+- Name: "mellon-holdings-etl"
+- Entry Point: mellon_holdings_etl_flow()
+- Parameters:
+  - source_files (list): List of source file paths (already in container)
+  - db_host (str, default="bor-db"): Database hostname
+  - db_port (str, default="3306"): Database port
+  - db_user (str): Database username
+  - db_password (str): Database password
+  - db_name (str, default="borarch"): Database name
+  - target_dir (str, default="/var/lib/mysql-files/ftpetl/incoming/"): Target directory
+  - delimiter (str, default=","): Field delimiter
+  - quote_char (str, default='"'"): Quote character
+  - line_terminator (str, default="\n"): Line terminator
+  - skip_lines (int, default=1): Number of header lines to skip
+  - truncate_before_load (bool, default=False): Whether to truncate table before loading
 
-#### 3. Dependencies
+#### 3.a. Dependencies external
+- Python 3.11+
+- Prefect
+- mysql-connector-python
+- python-dotenv
+- csv (standard library)
+
+#### 3.b. Dependencies workflows
+- BaseIngestionWorkflow (src/utils/base_ingestion.py)
 
 #### 4. Environment Variables
+Required:
+- DB_HOST: Database hostname
+- DB_PORT: Database port
+- DB_USER: Database username
+- DB_PASSWORD: Database password
+- DB_NAME: Database name
 
 #### 5. File System Requirements
+- Access to bor-files-data volume
+- Mount point: /var/lib/mysql-files/ftpetl/incoming/
+- Directory structure:
+  ```
+  /var/lib/mysql-files/ftpetl/incoming/
+  ├── mellon-*.csv    # Mellon holdings files
+  ```
 
 #### 6. Database Requirements
+- MySQL 8.0+
+- Database: borarch
+
+**Tables:**
+- `borarch.MellonHoldingsStaging`: Main staging table for processed holdings data
+  - Primary key: id (AUTO_INCREMENT)
+  - Key fields: AccountNumber, MellonSecurityId, AsOfDate, FileSource
+  - Data types: VARCHAR(20-200), DECIMAL(10-20,2-6), DATE, DATETIME, INT
+  - Indexes: idx_account (AccountNumber), idx_security (MellonSecurityId), idx_date (AsOfDate), idx_processed (Processed), idx_file_source (FileSource)
+
+- `borarch.MellonFileImport`: File import tracking table
+  - Primary key: id (AUTO_INCREMENT)
+  - Unique key: FileName
+  - Fields: FileName, FileSize, ImportDate, RecordsImported, RecordsProcessed, Status, ErrorMessage, ProcessingDate
+  - Status enum: 'IMPORTED', 'PROCESSED', 'ERROR'
+  - Indexes: idx_filename (FileName), idx_status (Status), idx_import_date (ImportDate)
+
+- `borarch.MellonHoldings`: Final processed data table (same structure as staging)
+- `borarch.MellonRawStaging`: Raw CSV data table (for debugging)
+
+**Stored Procedures:**
+- `borarch.usp_MellonHoldings_Load`: Loads Mellon holdings CSV file into staging table
+  - Parameters: p_FilePath (VARCHAR(255)), p_FileSource (VARCHAR(100))
+  - Purpose: Alternative method for loading data using LOAD DATA INFILE
+  - Usage: CALL usp_MellonHoldings_Load('incoming/mellon-file.csv', 'mellon-file.csv')
+  - Features: File tracking, data transformation, error handling
+
+- `borarch.usp_MellonRawHoldings_Load`: Loads raw CSV data for debugging
+  - Parameters: p_FilePath (VARCHAR(255))
+  - Purpose: Loads raw CSV lines into MellonRawStaging table
+  - Usage: CALL usp_MellonRawHoldings_Load('ftpetl/incoming/mellon-file.csv')
+
+**User permissions required:**
+- FILE privilege for bulk loading
+- DELETE privilege for account cleanup
+- INSERT/UPDATE privileges on all Mellon tables
+- EXECUTE privilege on stored procedures
 
 ### Implementation Steps
+1. Create workflow file (src/workflows/mellon_holdings_etl.py)
+2. Implement account-specific deletion task
+3. Implement file tracking task
+4. Create main flow with parameter validation
+5. Add field mappings and transformations for data cleaning
+6. Configure deployment in prefect.yaml
+7. Add comprehensive testing
 
 ### Testing
+Location: tests/data/ (sample files)
+Test Cases:
+1. Single file processing
+2. Multiple file processing
+3. Account-specific data cleanup
+4. Data transformation validation
+5. File tracking verification
 
 ### Error Handling
+- File existence verification
+- Database connection retries
+- Account-specific deletion errors
+- Data transformation errors
+- File tracking errors
 
 ### Monitoring
+- Task execution status
+- File processing success/failure
+- Account cleanup operations
+- Data transformation results
+- Error logging
 
 ### Security Considerations
+- Non-root user execution
+- Secure credential handling
+- Database access control
+- File permission management
 
 ### Performance Considerations
+- Account-specific deletion optimization
+- Data transformation efficiency
+- Database connection pooling
+- Batch processing for multiple files
 
 ### Maintenance
+- Regular log review
+- Error pattern monitoring
+- Performance metrics tracking
+- Data quality validation
 
 ### Future Enhancements
+1. Data validation before processing
+2. Archive management
+3. Notification system
+4. Performance optimization
+5. Enhanced error reporting
+6. Data quality metrics
 
-## new.py ################################################################################## end
+## mellon_holdings_etl.py ################################################################################## end

@@ -1,0 +1,295 @@
+# Mellon Holdings ETL Prefect Flow Specifications
+
+## Overview
+This document provides specifications for creating a Prefect flow to process Mellon holdings CSV files and load them into the bor system databases.
+
+## Flow Name
+`mellon-holdings-etl`
+
+## Database Context
+- **Source Database**: `borarch` (raw data and staging)
+- **Target Database**: `borinst` (final processed data)
+- **Container**: `bor-db` (MySQL 8.0)
+- **Network**: `bor-network`
+
+## File Specifications
+
+### Input Files
+- **Location**: `ref/mellon-*.csv` (source files on host)
+- **Target Location**: `/var/lib/mysql-files/ftpetl/incoming/` (inside bor-db container)
+- **Files**:
+  - `mellon-660610007-AAD-20250414.csv` (241 records)
+  - `mellon-660600027-AAD-20250414.csv` (62 records)
+  - `mellon-660600017-AAD-20250414.csv` (129 records)
+- **Total Records**: 432 across all files
+
+### File Format
+- **Encoding**: UTF-8 with BOM
+- **Delimiter**: Comma (,)
+- **Quote Character**: Double quote (")
+- **Line Terminator**: \n
+- **Header Row**: Yes (first row contains column names)
+
+### CSV Structure
+```
+Account Number,Account Name,Account Type,Source Account Number,Source Account Name,As-Of Date,Mellon Security ID,Country Code,Country,Segment,Category,Sector,Industry,Security Description 1,Security Description 2,,Acct Base Currency Code,Exchange Rate,Issue Currency Code,Shares/Par,Base Cost,Local Cost,Base Price,Local Price,Base Market Value,Local Market Value,Base Net Income Receivable,Local Net Income Receivable,Base Market Value with Accrual,Coupon Rate,Maturity Date,Base Unrealized Gain/Loss,Local Unrealized Gain/Loss,Base Unrealized Currency Gain/Loss,Base Net Unrealized Gain/Loss,Percent of Total,ISIN,SEDOL,CUSIP,Ticker,CMS Account Number,Income Currency,Security Identifier,Underlying Security,Fair Value Price Level,Report Run Date and Time (EDT)
+```
+
+## Database Tables
+
+### 1. MellonRawStaging (borarch)
+```sql
+CREATE TABLE MellonRawStaging (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  raw_data TEXT NOT NULL,
+  INDEX idx_id (id)
+);
+```
+**Purpose**: Stores raw CSV data as text for processing
+
+### 2. MellonFileImport (borarch)
+```sql
+CREATE TABLE MellonFileImport (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  FileName VARCHAR(255) NOT NULL UNIQUE,
+  FileSize BIGINT,
+  ImportDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  RecordsImported INT DEFAULT 0,
+  RecordsProcessed INT DEFAULT 0,
+  Status ENUM('IMPORTED', 'PROCESSED', 'ERROR') DEFAULT 'IMPORTED',
+  ErrorMessage TEXT,
+  ProcessingDate TIMESTAMP NULL,
+  INDEX idx_filename (FileName),
+  INDEX idx_status (Status),
+  INDEX idx_import_date (ImportDate)
+);
+```
+**Purpose**: Tracks file import operations and status
+
+### 3. MellonHoldingsStaging (borarch)
+```sql
+CREATE TABLE MellonHoldingsStaging (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  AccountNumber VARCHAR(20) NOT NULL,
+  AccountName VARCHAR(100) NOT NULL,
+  AccountType VARCHAR(10) NOT NULL,
+  SourceAccountNumber VARCHAR(20),
+  SourceAccountName VARCHAR(100),
+  AsOfDate DATE NOT NULL,
+  MellonSecurityId VARCHAR(50) NOT NULL,
+  CountryCode VARCHAR(3),
+  Country VARCHAR(50),
+  Segment VARCHAR(100),
+  Category VARCHAR(100),
+  Sector VARCHAR(100),
+  Industry VARCHAR(100),
+  SecurityDescription1 VARCHAR(200),
+  SecurityDescription2 VARCHAR(200),
+  AcctBaseCurrencyCode VARCHAR(3) NOT NULL,
+  ExchangeRate DECIMAL(15,6),
+  IssueCurrencyCode VARCHAR(3),
+  SharesPar DECIMAL(20,4),
+  BaseCost DECIMAL(20,2),
+  LocalCost DECIMAL(20,2),
+  BasePrice DECIMAL(15,6),
+  LocalPrice DECIMAL(15,6),
+  BaseMarketValue DECIMAL(20,2),
+  LocalMarketValue DECIMAL(20,2),
+  BaseNetIncomeReceivable DECIMAL(20,2),
+  LocalNetIncomeReceivable DECIMAL(20,2),
+  BaseMarketValueWithAccrual DECIMAL(20,2),
+  CouponRate DECIMAL(10,4),
+  MaturityDate DATE,
+  BaseUnrealizedGainLoss DECIMAL(20,2),
+  LocalUnrealizedGainLoss DECIMAL(20,2),
+  BaseUnrealizedCurrencyGainLoss DECIMAL(20,2),
+  BaseNetUnrealizedGainLoss DECIMAL(20,2),
+  PercentOfTotal DECIMAL(10,4),
+  ISIN VARCHAR(20),
+  SEDOL VARCHAR(20),
+  CUSIP VARCHAR(20),
+  Ticker VARCHAR(20),
+  CMSAccountNumber VARCHAR(20),
+  IncomeCurrency VARCHAR(3),
+  SecurityIdentifier VARCHAR(50),
+  UnderlyingSecurity VARCHAR(100),
+  FairValuePriceLevel INT,
+  ReportRunDateTime DATETIME,
+  FileSource VARCHAR(100) NOT NULL,
+  ImportDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  Processed TINYINT(1) DEFAULT 0,
+  INDEX idx_account (AccountNumber),
+  INDEX idx_security (MellonSecurityId),
+  INDEX idx_date (AsOfDate),
+  INDEX idx_processed (Processed),
+  INDEX idx_file_source (FileSource)
+);
+```
+**Purpose**: Stores structured, parsed data from CSV files
+
+### 4. MellonHoldings (borarch)
+```sql
+CREATE TABLE MellonHoldings (
+  -- Same structure as MellonHoldingsStaging but for final data
+  -- Additional indexes and constraints for production use
+);
+```
+**Purpose**: Final processed data before moving to borinst
+
+## Stored Procedures
+
+### 1. usp_MellonRawHoldings_Load (DEPRECATED)
+**Status**: DEPRECATED - Logic moved to Prefect flow
+**Reason**: MySQL doesn't allow LOAD DATA INFILE in stored procedures
+**Replacement**: Direct LOAD DATA INFILE commands in Prefect flow
+
+### 2. usp_MellonHoldings_Load (borarch)
+```sql
+CREATE PROCEDURE usp_MellonHoldings_Load(
+  IN p_FilePath VARCHAR(255),
+  IN p_FileSource VARCHAR(100)
+)
+```
+**Purpose**: Transforms raw CSV data from MellonRawStaging into structured MellonHoldingsStaging
+**Input**: File path and source identifier
+**Output**: Structured data in MellonHoldingsStaging table
+**Usage**: `CALL usp_MellonHoldings_Load('ftpetl/incoming/mellon-660610007-AAD-20250414.csv', 'mellon-660610007-AAD-20250414.csv');`
+
+### 3. usp_MellonHoldings_ToBorinst (TO BE DEVELOPED)
+```sql
+CREATE PROCEDURE usp_MellonHoldings_ToBorinst(
+  IN p_FileSource VARCHAR(100)
+)
+```
+**Purpose**: Move processed data from MellonHoldingsStaging to borinst tables
+**Target Tables**: 
+- `borinst.Port` (portfolio information)
+- `borinst.Instr` (instrument information)
+- `borinst.PortVal` (portfolio valuations)
+- `borinst.PortTran` (portfolio transactions)
+**Status**: TO BE DEVELOPED
+
+## Prefect Flow Structure
+
+### Flow: mellon-holdings-etl
+```python
+@flow(name="mellon-holdings-etl")
+def mellon_holdings_etl_flow():
+    """
+    Main ETL flow for processing Mellon holdings CSV files
+    """
+```
+
+### Task 1: copy_files_to_container
+```python
+@task(name="copy-files-to-container")
+def copy_files_to_container():
+    """
+    Copy Mellon CSV files from host to Docker container
+    """
+    # Copy files to /var/lib/mysql-files/ftpetl/incoming/
+    # Files: mellon-660610007-AAD-20250414.csv, mellon-660600027-AAD-20250414.csv, mellon-660600017-AAD-20250414.csv
+```
+
+### Task 2: load_raw_data
+```python
+@task(name="load-raw-data")
+def load_raw_data():
+    """
+    Load CSV files into MellonRawStaging table using LOAD DATA INFILE
+    """
+    # Execute LOAD DATA INFILE commands for each file
+    # Update MellonFileImport tracking table
+```
+
+### Task 3: transform_raw_data
+```python
+@task(name="transform-raw-data")
+def transform_raw_data():
+    """
+    Transform raw CSV data into structured format
+    """
+    # Call usp_MellonHoldings_Load for each file
+    # Parse CSV data and load into MellonHoldingsStaging
+```
+
+### Task 4: validate_data
+```python
+@task(name="validate-data")
+def validate_data():
+    """
+    Validate transformed data quality
+    """
+    # Check data integrity
+    # Verify record counts
+    # Validate business rules
+```
+
+### Task 5: load_to_borinst
+```python
+@task(name="load-to-borinst")
+def load_to_borinst():
+    """
+    Load processed data into borinst database
+    """
+    # Call usp_MellonHoldings_ToBorinst (to be developed)
+    # Move data to production tables
+```
+
+## Technical Requirements
+
+### Database Connection
+- **Host**: `bor-db` (container name)
+- **Port**: `3306`
+- **User**: `borAllAdmin`
+- **Password**: `kBu9pjz2vi`
+- **Databases**: `borarch`, `borinst`
+
+### File Operations
+- **Source Directory**: `ref/` (on host)
+- **Target Directory**: `/var/lib/mysql-files/ftpetl/incoming/` (in container)
+- **File Permissions**: Ensure MySQL can read files (777 or 644)
+
+### LOAD DATA INFILE Commands
+```sql
+-- For each file, execute:
+LOAD DATA INFILE '/var/lib/mysql-files/ftpetl/incoming/mellon-{account}-AAD-{date}.csv' 
+INTO TABLE MellonRawStaging 
+FIELDS TERMINATED BY '\n' 
+LINES TERMINATED BY '\n' 
+(@raw_line) 
+SET raw_data = @raw_line;
+```
+
+### Error Handling
+- **File Not Found**: Log error and fail gracefully
+- **Database Connection**: Retry with exponential backoff
+- **Data Validation**: Log validation errors and continue with valid records
+- **Import Tracking**: Update MellonFileImport with error messages
+
+### Monitoring and Logging
+- **Record Counts**: Track records at each stage
+- **Processing Time**: Monitor performance
+- **Error Rates**: Track validation and processing errors
+- **File Status**: Monitor file import status
+
+## Success Criteria
+1. All 432 records successfully loaded into MellonRawStaging
+2. All records successfully transformed into MellonHoldingsStaging
+3. All records successfully loaded into borinst tables
+4. Import tracking records updated with success status
+5. No data loss or corruption during processing
+
+## Dependencies
+- `bor-db` container running and accessible
+- `borarch` and `borinst` databases exist
+- Mellon tables created in borarch database
+- Stored procedures deployed
+- File permissions set correctly
+
+## Notes
+- The usp_MellonRawHoldings_Load procedure is deprecated due to MySQL limitations
+- LOAD DATA INFILE operations are handled directly in the Prefect flow
+- Data transformation logic remains in stored procedures
+- Final borinst loading procedure needs to be developed
+- Consider adding data quality checks and business rule validation

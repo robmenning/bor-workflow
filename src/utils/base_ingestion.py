@@ -77,9 +77,17 @@ def load_data_to_staging(
         transformations = []
         
         for source_field, target_field in field_mappings.items():
-            if field_transformations and source_field in field_transformations:
-                fields.append(f"@{source_field}")
-                transformations.append(f"{target_field} = {field_transformations[source_field]}")
+            if field_transformations and target_field in field_transformations:
+                # Use the target_field as the variable name if it starts with @
+                if target_field.startswith('@'):
+                    fields.append(target_field)
+                else:
+                    # Quote field names with spaces or special characters
+                    if ' ' in source_field or '-' in source_field:
+                        fields.append(f"@`{source_field}`")
+                    else:
+                        fields.append(f"@{source_field}")
+                transformations.append(f"{target_field} = {field_transformations[target_field]}")
             else:
                 fields.append(target_field)
         
@@ -97,6 +105,7 @@ def load_data_to_staging(
         if transformations:
             load_query += f"\nSET {', '.join(transformations)}"
         
+        print(f"Generated LOAD DATA INFILE query: {load_query}")
         cursor.execute(load_query)
         conn.commit()
         

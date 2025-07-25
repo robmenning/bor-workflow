@@ -69,7 +69,7 @@ deploy_flows() {
     echo "Deploying workflows from prefect.yaml..."
     docker exec -i bor-workflow /bin/bash -c "export \
       \$(grep -v '^#' $env_file | xargs) && \
-      prefect deploy"
+      prefect deploy --all"
     
     cleanup_env_file
     echo "Workflow deployment completed!"
