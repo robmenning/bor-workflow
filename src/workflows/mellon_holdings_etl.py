@@ -15,7 +15,7 @@ class MellonHoldingsETLWorkflow(BaseIngestionWorkflow):
     def __init__(self):
         super().__init__(
             name="Mellon Holdings ETL",
-            target_table="borarch.MellonHoldingsStaging",
+                                    target_table="borarch.MellonHoldings",
                                     field_mappings={
                             "Account Number": "AccountNumber",
                             "Account Name": "AccountName", 
@@ -159,7 +159,7 @@ def delete_existing_account_data(file_path: str, db_config: dict) -> bool:
         # Build the DELETE query with placeholders
         placeholders = ', '.join(['(%s, %s)'] * len(account_date_pairs))
         delete_sql = f"""
-            DELETE FROM borarch.MellonHoldingsStaging 
+            DELETE FROM borarch.MellonHoldings 
             WHERE (AccountNumber, AsOfDate) IN ({placeholders})
         """
         
@@ -251,7 +251,7 @@ def update_filesource_for_loaded_data(file_source: str, db_config: dict) -> bool
 @task(name="transform-loaded-data")
 def transform_loaded_data(file_source: str, db_config: dict) -> bool:
     """
-    Transform data from MellonRawStaging to MellonHoldingsStaging with proper type conversions
+    Transform data from MellonRawStaging to MellonHoldings with proper type conversions
     """
     try:
         import mysql.connector
@@ -259,11 +259,11 @@ def transform_loaded_data(file_source: str, db_config: dict) -> bool:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
         
-        print(f"Transforming data from MellonRawStaging to MellonHoldingsStaging for {file_source}...")
+        print(f"Transforming data from MellonRawStaging to MellonHoldings for {file_source}...")
         
         # Insert data from raw staging to typed staging with transformations
         insert_sql = f"""
-        INSERT INTO borarch.MellonHoldingsStaging (
+        INSERT INTO borarch.MellonHoldings (
             AccountNumber, AccountName, AccountType, SourceAccountNumber, SourceAccountName,
             AsOfDate, MellonSecurityId, CountryCode, Country, Segment, Category, Sector,
             Industry, SecurityDescription1, SecurityDescription2, AcctBaseCurrencyCode,
@@ -396,7 +396,7 @@ def transform_loaded_data(file_source: str, db_config: dict) -> bool:
         deleted_rows = cursor.rowcount
         
         conn.commit()
-        print(f"Transformed and inserted {inserted_rows} rows from MellonRawStaging to MellonHoldingsStaging")
+        print(f"Transformed and inserted {inserted_rows} rows from MellonRawStaging to MellonHoldings")
         print(f"Cleared {deleted_rows} rows from MellonRawStaging")
         return True
         
