@@ -148,3 +148,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Environment files with secrets
+envs.txt

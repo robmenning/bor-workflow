@@ -409,6 +409,45 @@ def transform_loaded_data(file_source: str, db_config: dict) -> bool:
         if 'conn' in locals():
             conn.close()
 
+@task(name="run-mellon-integration-proc")
+def run_mellon_integration_proc(db_config: dict) -> bool:
+    """
+    Run the Mellon holdings integration stored procedure in the bormeta database
+    """
+    try:
+        import mysql.connector
+        
+        # Create a new connection config for bormeta database
+        bormeta_db_config = db_config.copy()
+        bormeta_db_config["database"] = "bormeta"
+        
+        conn = mysql.connector.connect(**bormeta_db_config)
+        cursor = conn.cursor()
+        
+        print("Running Mellon integration stored procedure...")
+        
+        # Execute the stored procedure
+        cursor.callproc('usp_mellon_hold_integrate', (1, 'FULL_INTEGRATION', None, None, None, None))
+        
+        # Fetch any results if the procedure returns them
+        for result in cursor.stored_results():
+            if result:
+                rows = result.fetchall()
+                print(f"Stored procedure returned {len(rows)} result rows")
+        
+        conn.commit()
+        print("Mellon integration stored procedure completed successfully")
+        return True
+        
+    except Exception as e:
+        print(f"Error running Mellon integration stored procedure: {str(e)}")
+        return False
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
+
 @flow(name="mellon-holdings-etl")
 def mellon_holdings_etl_flow(
     source_files: list,
@@ -582,6 +621,14 @@ def mellon_holdings_etl_flow(
                 raise Exception(f"Failed to transform data for {file_name}")
             
             print(f"Successfully processed {file_name}")
+        
+        # Step 5: Run integration stored procedure after all files are processed
+        print("Step 5: Running Mellon integration stored procedure...")
+        integration_result = run_mellon_integration_proc(db_config)
+        print(f"run_mellon_integration_proc() returned: {integration_result}")
+        
+        if not integration_result:
+            raise Exception("Failed to run Mellon integration stored procedure")
         
         print("Mellon Holdings ETL completed successfully")
         return True

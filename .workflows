@@ -145,22 +145,24 @@ Test Cases:
 ## mellon_holdings_etl.py ################################################################################## start
 
 ### Overview
-The Mellon Holdings ETL Workflow processes Mellon holdings CSV files and loads them into the BOR system databases. It handles file loading, data transformation, and account-specific data cleanup to ensure data integrity across multiple file imports.
+The Mellon Holdings ETL Workflow processes Mellon holdings CSV files and loads them into the BOR system databases. It handles file loading, data transformation, and account-specific data cleanup to ensure data integrity across multiple file imports. The workflow uses a two-step process: loading raw CSV data into MellonRawStaging, then transforming and inserting into MellonHoldings.
 
 ### Business Case
 - Mellon provides holdings data in CSV format for multiple accounts
 - Files are uploaded to the bor-files container via FTP
-- The workflow processes each file and loads data into the borarch.MellonHoldingsStaging table
-- Account-specific cleanup ensures no duplicate or stale data for the same account
+- The workflow processes each file using a two-step approach:
+  1. Load raw CSV data into borarch.MellonRawStaging (all VARCHAR fields)
+  2. Transform and insert data into borarch.MellonHoldings (typed fields)
+- Account-specific cleanup ensures no duplicate or stale data for the same account and date
 - Data is made available for further processing and analysis
 
 ### Technical Components
 
 #### 1. Tasks
-- `delete_existing_account_data`: Deletes existing records for accounts found in the incoming file
+- `delete_existing_account_data`: Deletes existing records for accounts and dates found in the incoming file
   - Input: file_path (str), db_config (dict)
   - Output: bool
-  - Purpose: Ensures clean data by removing old records for the same account
+  - Purpose: Ensures clean data by removing old records for the same account and date combination
 
 - `update_file_tracking`: Updates the MellonFileImport tracking table
   - Input: file_source (str), db_config (dict)
@@ -171,6 +173,24 @@ The Mellon Holdings ETL Workflow processes Mellon holdings CSV files and loads t
   - Input: file_path, database connection parameters, field mappings, transformations
   - Output: bool
   - Retries: 3 attempts, 60-second delay
+  - Purpose: Loads raw CSV data into MellonRawStaging (all VARCHAR fields)
+
+- `update_filesource_for_loaded_data`: Updates FileSource column in MellonRawStaging
+  - Input: file_source (str), db_config (dict)
+  - Output: bool
+  - Purpose: Sets FileSource for all rows loaded from a specific file
+
+- `transform_loaded_data`: Transforms data from MellonRawStaging to MellonHoldings
+  - Input: file_source (str), db_config (dict)
+  - Output: bool
+  - Purpose: Performs data type conversions and cleaning via INSERT...SELECT
+
+- `run_mellon_integration_proc`: Runs the Mellon holdings integration stored procedure
+  - Input: db_config (dict)
+  - Output: bool
+  - Purpose: Executes usp_mellon_hold_integrate(1, 'FULL_INTEGRATION', NULL, NULL, NULL, NULL) in bormeta database
+  - Database: Connects to bormeta database (not borarch)
+  - Features: Handles stored procedure results, error handling, connection cleanup
 
 #### 2. Flow
 - Name: "mellon-holdings-etl"
@@ -218,14 +238,21 @@ Required:
 
 #### 6. Database Requirements
 - MySQL 8.0+
-- Database: borarch
+- Databases: borarch, bormeta
 
 **Tables:**
-- `borarch.MellonHoldingsStaging`: Main staging table for processed holdings data
+- `borarch.MellonRawStaging`: Intermediate staging table for raw CSV data
+  - Primary key: id (AUTO_INCREMENT)
+  - All fields: VARCHAR(255) - stores raw CSV data before transformation
+  - Key fields: AccountNumber, MellonSecurityId, AsOfDate, FileSource
+  - Purpose: Holds raw CSV data before type conversion and cleaning
+
+- `borarch.MellonHoldings`: Final processed data table
   - Primary key: id (AUTO_INCREMENT)
   - Key fields: AccountNumber, MellonSecurityId, AsOfDate, FileSource
   - Data types: VARCHAR(20-200), DECIMAL(10-20,2-6), DATE, DATETIME, INT
   - Indexes: idx_account (AccountNumber), idx_security (MellonSecurityId), idx_date (AsOfDate), idx_processed (Processed), idx_file_source (FileSource)
+  - Purpose: Final destination for processed holdings data
 
 - `borarch.MellonFileImport`: File import tracking table
   - Primary key: id (AUTO_INCREMENT)
@@ -233,9 +260,6 @@ Required:
   - Fields: FileName, FileSize, ImportDate, RecordsImported, RecordsProcessed, Status, ErrorMessage, ProcessingDate
   - Status enum: 'IMPORTED', 'PROCESSED', 'ERROR'
   - Indexes: idx_filename (FileName), idx_status (Status), idx_import_date (ImportDate)
-
-- `borarch.MellonHoldings`: Final processed data table (same structure as staging)
-- `borarch.MellonRawStaging`: Raw CSV data table (for debugging)
 
 **Stored Procedures:**
 - `borarch.usp_MellonHoldings_Load`: Loads Mellon holdings CSV file into staging table
@@ -249,11 +273,18 @@ Required:
   - Purpose: Loads raw CSV lines into MellonRawStaging table
   - Usage: CALL usp_MellonRawHoldings_Load('ftpetl/incoming/mellon-file.csv')
 
+- `bormeta.usp_mellon_hold_integrate`: Integration procedure for Mellon holdings data
+  - Parameters: p_AccountId (INT), p_IntegrationType (VARCHAR(50)), p_StartDate (DATE), p_EndDate (DATE), p_AccountNumber (VARCHAR(50)), p_SecurityId (VARCHAR(50))
+  - Purpose: Integrates Mellon holdings data with other system data
+  - Usage: CALL usp_mellon_hold_integrate(1, 'FULL_INTEGRATION', NULL, NULL, NULL, NULL)
+  - Features: Data integration, validation, and processing
+
 **User permissions required:**
 - FILE privilege for bulk loading
 - DELETE privilege for account cleanup
 - INSERT/UPDATE privileges on all Mellon tables
 - EXECUTE privilege on stored procedures
+- Access to both borarch and bormeta databases
 
 ### Implementation Steps
 1. Create workflow file (src/workflows/mellon_holdings_etl.py)
@@ -272,6 +303,7 @@ Test Cases:
 3. Account-specific data cleanup
 4. Data transformation validation
 5. File tracking verification
+6. Integration procedure execution
 
 ### Error Handling
 - File existence verification
@@ -279,12 +311,14 @@ Test Cases:
 - Account-specific deletion errors
 - Data transformation errors
 - File tracking errors
+- Integration procedure execution errors
 
 ### Monitoring
 - Task execution status
 - File processing success/failure
 - Account cleanup operations
 - Data transformation results
+- Integration procedure execution results
 - Error logging
 
 ### Security Considerations
