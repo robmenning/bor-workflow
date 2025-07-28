@@ -151,3 +151,6 @@ dist
 
 # Environment files with secrets
 envs.txt
+
+# pdfs
+*.pdf

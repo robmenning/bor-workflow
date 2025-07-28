@@ -100,6 +100,13 @@ def write_holdings_file(
         # Get field names from the first record
         fieldnames = list(holdings_data[0].keys())
         
+        # Validate delimiter
+        if not delimiter or len(delimiter) != 1:
+            print(f"Invalid delimiter: '{delimiter}' (length: {len(delimiter) if delimiter else 0})")
+            return False
+        
+        print(f"Using delimiter: '{delimiter}' (length: {len(delimiter)})")
+        
         # Write the file
         with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(
@@ -152,7 +159,7 @@ def factset_out_hold_flow(
         print(f"Date: {date_valid}")
         print(f"Port ID: {port_id}")
         print(f"Output directory: {output_dir}")
-        print(f"Delimiter: '{delimiter}'")
+        print(f"Delimiter: '{delimiter}' (type: {type(delimiter)}, length: {len(delimiter) if delimiter else 0})")
         
         # Step 1: Fetch holdings data
         print("Step 1: Fetching holdings data...")
