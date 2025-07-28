@@ -348,3 +348,342 @@ Test Cases:
 6. Data quality metrics
 
 ## mellon_holdings_etl.py ################################################################################## end
+
+## factset_out_hold.py ################################################################################## start
+
+### Overview
+The Factset Out Holdings Workflow retrieves holdings data from the API and creates output files for external systems. This workflow works in reverse 
+compared to ingestion workflows - it produces files instead of consuming them.
+
+### Business Case
+- External systems need holdings data in specific file formats
+- Data is retrieved from the bor-api endpoint or database stored procedures
+- Files are created in the outgoing directory for external consumption
+- Supports multiple output formats (tab-delimited, pipe-delimited, etc.)
+- Can be triggered on-demand via bor-api endpoints for integration with bor-app
+
+### Technical Components
+
+#### 1. Tasks
+- `fetch_holdings_data`: Retrieves holdings data from the API endpoint
+  - Input: date_valid (str), port_id (Optional[int]), api_host (str), api_port (int)
+  - Output: List[Dict] - Holdings records
+  - API Endpoint: http://bor-api:4410/data/factset-holdings
+  - Parameters: dateValId, portId (optional)
+
+- `write_holdings_file`: Writes holdings data to a delimited text file
+  - Input: holdings_data (List[Dict]), output_path (str), delimiter (str), include_header (bool)
+  - Output: bool
+  - Supports various delimiters (tab, pipe, comma)
+  - Includes optional headers
+
+#### 2. Flow
+- Name: "Factset Out Holdings"
+- Entry Point: factset_out_hold_flow()
+- Parameters:
+  - date_valid (str): Date in YYYY-MM-DD format
+  - port_id (Optional[int]): Optional portfolio ID to filter by
+  - file_name (Optional[str]): Output filename (if None, auto-generated)
+  - delimiter (str, default="\t"): Field delimiter character
+  - output_dir (str, default="/var/lib/mysql-files/ftpetl/outgoing/"): Output directory path
+  - api_host (str, default="bor-api"): API hostname
+  - api_port (int, default=4410): API port
+
+#### 3.a. Dependencies external
+- Python 3.11+
+- Prefect
+- requests (for API calls)
+- csv (for file writing)
+
+#### 3.b. Dependencies workflows
+n/a
+
+#### 4. Environment Variables
+Required:
+- API_HOST: API server hostname (default: bor-api)
+- API_PORT: API server port (default: 4410)
+
+#### 5. File System Requirements
+- Access to bor-files-data volume
+- Directory structure:
+  ```
+  /var/lib/mysql-files/ftpetl/
+  ├── incoming/    # Input files
+  ├── outgoing/    # Output files (created by this workflow)
+  ├── processed/   # Processed files
+  └── archive/     # Archived files
+  ```
+
+#### 6. Database Requirements
+- Optional: Can use stored procedure borinst.usp_FactsetOutHold as alternative to API
+- API endpoint: /data/factset-holdings
+
+### External Integration (bor-api/bor-app)
+
+#### 1. Workflow Triggering via bor-api
+The workflow can be triggered from external systems through bor-api endpoints:
+
+**Endpoint**: `POST /api/workflows/factset-out-hold/trigger`
+
+**Request Format**:
+```json
+{
+  "date_valid": "2025-04-14",
+  "port_id": 1,
+  "file_name": "custom_holdings.txt",
+  "delimiter": "\t",
+  "output_dir": "/var/lib/mysql-files/ftpetl/outgoing/",
+  "api_host": "bor-api",
+  "api_port": 4410
+}
+```
+
+**Response Format**:
+```json
+{
+  "success": true,
+  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
+  "flow_run_name": "splendid-bobcat",
+  "status": "SCHEDULED",
+  "message": "Workflow triggered successfully"
+}
+```
+
+#### 2. Workflow Status Monitoring
+Monitor workflow execution status via bor-api:
+
+**Endpoint**: `GET /api/workflows/factset-out-hold/status/{flow_run_id}`
+
+**Response Format**:
+```json
+{
+  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
+  "flow_run_name": "splendid-bobcat",
+  "status": "COMPLETED",
+  "start_time": "2025-07-28T03:53:02.000Z",
+  "end_time": "2025-07-28T03:53:06.000Z",
+  "duration_seconds": 4,
+  "file_created": "holdings_yyyymmdd.txt",
+  "file_size_bytes": 81047,
+  "records_processed": 368,
+  "error_message": null
+}
+```
+
+#### 3. Workflow Logs Retrieval
+Get detailed execution logs:
+
+**Endpoint**: `GET /api/workflows/factset-out-hold/logs/{flow_run_id}`
+
+**Response Format**:
+```json
+{
+  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
+  "logs": [
+    {
+      "timestamp": "2025-07-28T03:53:05.720Z",
+      "level": "INFO",
+      "message": "Beginning flow run 'splendid-bobcat' for flow 'factset-out-hold'"
+    },
+    {
+      "timestamp": "2025-07-28T03:53:06.016Z",
+      "level": "INFO", 
+      "message": "Successfully wrote 368 records to /var/lib/mysql-files/ftpetl/outgoing/holdings_yyyymmdd.txt"
+    }
+  ]
+}
+```
+
+#### 4. File Output Access
+Access generated files via bor-api:
+
+**Endpoint**: `GET /api/workflows/factset-out-hold/files/{flow_run_id}`
+
+**Response Format**:
+```json
+{
+  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
+  "files": [
+    {
+      "filename": "holdings_yyyymmdd.txt",
+      "path": "/var/lib/mysql-files/ftpetl/outgoing/holdings_yyyymmdd.txt",
+      "size_bytes": 81047,
+      "created_at": "2025-07-28T03:53:06.000Z",
+      "download_url": "/api/workflows/factset-out-hold/download/holdings_yyyymmdd.txt"
+    }
+  ]
+}
+```
+
+#### 5. Direct CLI Execution (External Systems)
+For direct execution from external systems without bor-api:
+
+**Command Format**:
+```bash
+docker exec -it bor-workflow prefect deployment run 'factset-out-hold/Factset Out Holdings' \
+  --params '{
+    "date_valid": "2025-04-14",
+    "port_id": 1,
+    "file_name": "custom_holdings.txt",
+    "delimiter": "\t",
+    "output_dir": "/var/lib/mysql-files/ftpetl/outgoing/",
+    "api_host": "bor-api",
+    "api_port": 4410
+  }'
+```
+
+**Parameter Validation**:
+- `date_valid`: Required, format YYYY-MM-DD
+- `port_id`: Optional integer, filters by portfolio ID
+- `file_name`: Optional string, defaults to "holdings_yyyymmdd.txt"
+- `delimiter`: Optional string, defaults to "\t" (tab)
+- `output_dir`: Optional string, defaults to "/var/lib/mysql-files/ftpetl/outgoing/"
+- `api_host`: Optional string, defaults to "bor-api"
+- `api_port`: Optional integer, defaults to 4410
+
+#### 6. Status Codes and Error Handling
+**Workflow Status Values**:
+- `SCHEDULED`: Workflow queued for execution
+- `RUNNING`: Workflow currently executing
+- `COMPLETED`: Workflow finished successfully
+- `FAILED`: Workflow failed with errors
+- `CANCELLED`: Workflow was cancelled
+
+**Error Response Format**:
+```json
+{
+  "success": false,
+  "error": "Connection refused to bor-api:4410",
+  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
+  "status": "FAILED",
+  "retryable": true
+}
+```
+
+#### 7. Integration with bor-app
+The bor-app container can integrate with this workflow using:
+
+**JavaScript/TypeScript Example**:
+```typescript
+// Trigger workflow
+const triggerResponse = await fetch('/api/workflows/factset-out-hold/trigger', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    date_valid: '2025-04-14',
+    port_id: 1,
+    file_name: 'holdings_20250414_port1.txt'
+  })
+});
+
+const { flow_run_id } = await triggerResponse.json();
+
+// Monitor status
+const checkStatus = async () => {
+  const statusResponse = await fetch(`/api/workflows/factset-out-hold/status/${flow_run_id}`);
+  const status = await statusResponse.json();
+  
+  if (status.status === 'COMPLETED') {
+    console.log(`File created: ${status.file_created}`);
+    console.log(`Records processed: ${status.records_processed}`);
+  } else if (status.status === 'FAILED') {
+    console.error(`Workflow failed: ${status.error_message}`);
+  } else {
+    // Still running, check again in 5 seconds
+    setTimeout(checkStatus, 5000);
+  }
+};
+
+checkStatus();
+```
+
+### Implementation Steps
+1. Create workflow file (src/workflows/factset_out_hold.py)
+2. Implement API data fetching with error handling
+3. Create file writing functionality with configurable delimiters
+4. Add directory creation and validation
+5. Implement auto-filename generation
+6. Add comprehensive testing
+7. Create bor-api endpoints for external integration
+8. Implement status monitoring and file access APIs
+
+### Testing
+Location: tests/test_factset_out_hold.py
+Test Cases:
+1. API connection failure scenario
+2. File writing with different delimiters
+3. Directory creation and permissions
+4. Auto-filename generation
+5. External API integration testing
+6. Status monitoring validation
+
+### Usage Examples
+
+#### Via Prefect UI
+```bash
+# Run with default parameters (tab-delimited, auto filename)
+prefect deployment run 'factset-out-hold/Factset Out Holdings'
+
+# Run with custom parameters
+prefect deployment run 'factset-out-hold/Factset Out Holdings' \
+  --params '{"date_valid": "2025-04-14", "port_id": 1, "delimiter": "|"}'
+```
+
+#### Via bor-api (External Systems)
+```bash
+# Trigger workflow
+curl -X POST http://localhost:4410/api/workflows/factset-out-hold/trigger \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date_valid": "2025-04-14",
+    "port_id": 1,
+    "file_name": "holdings_20250414_port1.txt"
+  }'
+
+# Check status
+curl http://localhost:4410/api/workflows/factset-out-hold/status/{flow_run_id}
+
+# Download file
+curl http://localhost:4410/api/workflows/factset-out-hold/download/holdings_20250414_port1.txt
+```
+
+#### Via Docker CLI (Direct)
+```bash
+# Run workflow directly
+docker exec -it bor-workflow prefect deployment run 'factset-out-hold/Factset Out Holdings' \
+  --params '{"date_valid": "2025-04-14", "port_id": 1}'
+
+# Check flow run status
+docker exec -it bor-workflow prefect flow-run ls --limit 5
+
+# Get detailed logs
+docker exec -it bor-workflow prefect flow-run logs {flow_run_id}
+```
+
+### Output File Format
+The workflow creates delimited text files with the following characteristics:
+- Configurable delimiter (tab, pipe, comma, etc.)
+- Optional header row
+- UTF-8 encoding
+- Standard CSV quoting rules
+- Auto-generated filenames: `factset-holdings_YYYY-MM-DD[_portN].txt`
+- Persistent storage in `/var/lib/mysql-files/ftpetl/outgoing/`
+
+### Security Considerations
+- API authentication for external triggers
+- File access permissions
+- Network security for inter-container communication
+- Input validation for all parameters
+
+### Performance Considerations
+- Asynchronous workflow execution
+- File size monitoring
+- Memory usage optimization
+- Network timeout handling
+
+### Monitoring and Alerting
+- Workflow execution metrics
+- File creation success/failure rates
+- API response times
+- Error pattern detection
+- Resource usage monitoring
