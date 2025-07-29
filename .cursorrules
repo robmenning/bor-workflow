@@ -175,7 +175,7 @@ scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.pag
 # DEV ITERATIONS
 
 ## deploying to the Prefect server (locally, on container)
-./scripts/deploy-wf.sh
+./scripts/deploy-wf.sh [dev | prod]
 
 ## be sure to copy env files to prod !!!!!!!!!!!!!!!!!!!!!!!!!
 can use ./scripts/put-env-prod.sh
