@@ -21,7 +21,7 @@ def fetch_holdings_data(
     date_valid: str,
     port_id: Optional[int] = None,
     api_host: str = "bor-api",
-    api_port: int = 4000
+    api_port: str = "4000"
 ) -> List[Dict]:
     """
     Fetch holdings data from the API endpoint
@@ -137,7 +137,7 @@ def factset_out_hold_flow(
     delimiter: str = "\t",
     output_dir: str = "/var/lib/mysql-files/ftpetl/outgoing/",
     api_host: str = "bor-api",
-    api_port: int = 4000
+    api_port: str = "4000"
 ) -> bool:
     """
     Main flow for creating Factset holdings output files
