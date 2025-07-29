@@ -1,689 +1,222 @@
-# BOR Workflow Service - Workflow Documentation
+# BOR Workflows Documentation
 
-## file_ingestion.py ################################################################################## start
+This document describes the workflows implemented by the bor-workflow service.
 
+## Overview
+
+The bor-workflow service provides automated data processing workflows using the Prefect orchestration engine. All workflows are containerized and run within the bor-network Docker network.
+
+## Available Workflows
+
+### 1. Mellon Holdings ETL (`mellon_holdings_etl.py`)
+
+**Purpose**: Processes Mellon holdings data files and integrates them into the database.
+
+**Steps**:
+1. **File Discovery**: Scans `/var/lib/mysql-files/ftpetl/incoming/` for Mellon CSV files
+2. **File Processing**: Processes each file using LOAD DATA INFILE
+3. **Data Validation**: Validates processed data
+4. **Integration**: Executes `usp_mellon_hold_integrate` stored procedure in `bormeta` database
+
+**Parameters**:
+- `date_valid`: Date for processing (YYYY-MM-DD format)
+- `file_pattern`: Pattern to match files (default: "mellon-*.csv")
+
+**Output**: Processed data in `borarch` database tables
+
+### 2. Factset Out Holdings (`factset_out_hold.py`)
+
+**Purpose**: Retrieves holdings data from bor-api and produces output files for external consumption.
+
+**Steps**:
+1. **Data Retrieval**: Fetches holdings data from bor-api with JWT authentication
+2. **File Generation**: Creates delimited output files in `/var/lib/mysql-files/ftpetl/outgoing/`
+
+**Parameters**:
+- `date_valid`: Date for data retrieval (YYYY-MM-DD format)
+- `port_id`: Optional portfolio ID filter
+- `file_name`: Output filename (auto-generated if not provided)
+- `delimiter`: Field delimiter (default: "|")
+- `api_host`: bor-api hostname (default: "bor-api")
+- `api_port`: bor-api port (default: "4410" for dev, "4610" for prod)
+
+**Output**: Delimited text file with holdings data
+
+## JWT Authentication
 
 ### Overview
-The File Ingestion Workflow manages the process of ingesting files into the BOR system. It handles file transfer from the bor-files container to 
-the bor-db container using the 'LOAD DATA INFILE' command, the data is then processed by a stored procedure.
 
-### Business Case
-- External systems upload files to the bor-files container via FTP
-- The workflow service monitors for new files
-- Files are processed and loaded into the bormeta database which serves as a staging area for further validation and processing on the way to the 
-final table(s) in databases such as borinst. 
-- Data is made available for further processing
+All workflows that interact with bor-api use JWT authentication as specified by the bor-api team. The authentication system matches the exact requirements used by bor-app and bor-api.
 
-### Technical Components
+### JWT Token Structure
 
-#### 1. Tasks
-- `check_file_in_volume`: Verifies file existence in shared volume's incoming/ directory
-  - Input: file_path (str) relative to root of the volume
-  - Output: bool
-  - Caching: Enabled (1 hour expiration)
+The JWT payload follows the bor-api specification:
 
-- `load_file_to_borarch`: Loads file into borarch.FundClassFee using 'LOAD DATA INFILE' command using mounted volume shared with the bor-files and bor-deb containers
-  - Input: file_path, db_host, db_port, db_user, db_pass, db_name
-  - Output: bool
-  - Retries: 3 attempts, 60-second delay
+```json
+{
+  "id": "workflow-service",
+  "name": "BOR Workflow Service",
+  "email": "workflow-service@bor-system.com",
+  "borUserId": 999,
+  "roleIds": ["dataadmin"],
+  "permissionIds": ["port:read", "instr:read"],
+  "isApproved": true,
+  "iat": 1625097600,
+  "exp": 1625184000
+}
+```
 
-- `move_file_to_processed`: Moves file using direct volume access to the bor-files container processed/ directory from the incoming/ directory
-  - Input: file_path, ftp_user, ftp_pass
-  - Output: bool
-  - Retries: 3 attempts, 60-second delay
+### Required Environment Variables
 
-- `execute_stored_procedure`: Runs database procedure
-  - Input: proc_name, db_host, db_port, db_user, db_pass, db_name
-  - Output: bool
-  - Retries: 3 attempts, 60-second delay
+- `NEXTAUTH_SECRET`: JWT secret (must match bor-api configuration)
+- `BOR_API_TOKEN`: Optional pre-generated service token
 
-#### 2. Flow
-- Name: "File Ingestion Workflow"
-- Entry Point: file_ingestion_workflow()
-- Parameters:
-  - file_path (str): Path to the file relative to the root of the volume in the bor-files container
-  - ftp_host (str, default="bor-files"): FTP server hostname
-  - ftp_port (int, default=21): FTP server port
-  - ftp_user (str, optional): FTP username
-  - ftp_pass (str, optional): FTP password
-  - db_host (str, default="bor-db"): Database hostname
-  - db_port (int, default=3306): Database port
-  - db_user (str, optional): Database username
-  - db_pass (str, optional): Database password
-  - db_name (str, default="bormeta"): Database name
-  - proc_name (str, default="usp_FileClassFee_Load"): Stored procedure name
-  
-#### 3.a. Dependencies external
-- Python 3.11+
-- Prefect
-- mysql-connector-python
-- python-dotenv
+### Authentication Flow
 
-#### 3.b. Dependencies workflows
-n/a
+1. **Token Generation**: Workflow generates JWT token using `NEXTAUTH_SECRET`
+2. **Token Validation**: bor-api validates token signature and expiration
+3. **Authorization**: bor-api checks `roleIds` and `isApproved` status
+4. **API Access**: Workflow accesses protected endpoints with valid token
 
-#### 4. Environment Variables
-Required:
-- FTP_ETL_USER: FTP username
-- FTP_ETL_PASS: FTP password
-- DB_ALL_SVC_USER: Database username
-- DB_ALL_SVC_USER_PASSWORD: Database password
+### Service Account Approach
 
-#### 5. File System Requirements
-- Access to bor-files-data volume
-- Mount point: /home/vsftpd
-- Directory structure:
-  ```
-  /home/vsftpd/<ftp_user>/
-  ├── incoming/    # New files
-  ├── processed/   # Processed files
-  └── archive/     # Archived files
-  ```
+The workflow service uses a dedicated service account with:
+- **Role**: `dataadmin` (required for data access)
+- **Permissions**: `port:read`, `instr:read` (minimum required)
+- **Approval**: `isApproved: true` (required for all requests)
 
-#### 6. Database Requirements
-- MySQL 8.0+
-- Stored procedure: bormeta.usp_FundClass_Load
-- User permissions: FILE privilege for bulk loading
+## External Integration
 
-### Implementation Steps
-1. Create workflow file (src/workflows/file_ingestion.py)
-2. Implement tasks with proper error handling and retries
-3. Create main flow with parameter validation
-4. Add environment variable support
-5. Implement both FTP and direct access methods
-6. Add comprehensive testing
+### bor-api Integration
 
-### Testing
-Location: tests/test_file_ingestion.py
-Test Cases:
-1. File not found scenario
-2. DB connection failure scenario
-3. File load failure scenario
-4. File move failure scenario
-5. Stored procedure failure scenario
+**Authentication**: JWT tokens with `dataadmin` role required
+**Endpoints**: 
+- `GET /data/factset-holdings` - Retrieve holdings data
+- Parameters: `dateValId`, `portId` (optional)
+
+**Error Handling**:
+- 401 Unauthorized: Invalid or missing JWT token
+- 403 Forbidden: Insufficient permissions or unapproved account
+- 404 Not Found: Endpoint or data not available
+
+### File System Integration
+
+**Input Directory**: `/var/lib/mysql-files/ftpetl/incoming/`
+**Output Directory**: `/var/lib/mysql-files/ftpetl/outgoing/`
+**Shared Volume**: `bor-files-data` (persistent across container restarts)
+
+### Database Integration
+
+**MySQL Connection**: Direct connection to `bor-db` container
+**Stored Procedures**: Execute integration procedures in `bormeta` database
+**Data Persistence**: All processed data stored in `borarch` database
+
+## Deployment and Execution
+
+### Prefect Deployments
+
+All workflows are deployed as Prefect deployments with environment-specific configurations:
+
+```yaml
+# Example deployment configuration
+name: "Factset Out Holdings"
+entrypoint: "src/workflows/factset_out_hold.py:factset_out_hold_flow"
+parameters:
+  date_valid: "2025-04-14"
+  api_port: "{{ $API_PORT }}"
+  delimiter: "|"
+```
+
+### Environment Configuration
+
+**Development**:
+- API Port: 4410
+- Authentication: JWT with `SKIP_AUTH_FOR_TESTS=false`
+- Database: Local bor-db container
+
+**Production**:
+- API Port: 4610
+- Authentication: JWT with full validation
+- Database: Production bor-db container
+
+### Execution Methods
+
+1. **Prefect UI**: Manual execution through web interface
+2. **CLI**: `prefect deployment run 'workflow-name'`
+3. **API**: REST API calls to Prefect server
+4. **Scheduled**: Automated execution via Prefect schedules
+
+## Monitoring and Logging
+
+### Log Sources
+
+1. **Prefect UI**: Flow run logs and task execution details
+2. **Container Logs**: `docker logs bor-workflow` and `docker logs bor-etl-agent`
+3. **File System**: Output files in `/var/lib/mysql-files/ftpetl/outgoing/`
 
 ### Error Handling
-- File existence verification
-- FTP connection retries
-- Database connection retries
-- File move operations
-- Stored procedure execution
 
-### Monitoring
-- Task execution status
-- File transfer success/failure
-- Database procedure execution
-- Error logging
+- **Authentication Errors**: JWT token validation failures
+- **API Errors**: bor-api connection or response errors
+- **File System Errors**: Permission or disk space issues
+- **Database Errors**: Connection or query execution failures
 
-### Security Considerations
-- Non-root user execution
-- Secure credential handling
-- File permission management
-- Database access control
+### Debugging
 
-### Performance Considerations
-- Caching for file checks
-- Retry mechanisms for network operations
-- Direct file access optimization
-- Database connection pooling
+1. **Check Container Status**: `docker ps` and `docker logs`
+2. **Verify Environment**: Check `.env` files and environment variables
+3. **Test Authentication**: Use JWT test utilities
+4. **Validate API Access**: Test bor-api endpoints directly
 
-### Maintenance
-- Regular log review
-- Error pattern monitoring
-- Performance metrics tracking
-- Security updates
+## Security Considerations
 
-### Future Enhancements
-1. File validation before processing
-2. Archive management
-3. Notification system
-4. Performance optimization
-5. Enhanced error reporting
+### JWT Token Management
 
-## file_ingestion.py ################################################################################## end
+- **Secret Security**: `NEXTAUTH_SECRET` must be kept secure
+- **Token Expiration**: Tokens expire after 30 days by default
+- **Token Rotation**: Service tokens should be rotated periodically
+- **Environment Isolation**: Different secrets for dev/prod environments
 
-## mellon_holdings_etl.py ################################################################################## start
+### Network Security
 
-### Overview
-The Mellon Holdings ETL Workflow processes Mellon holdings CSV files and loads them into the BOR system databases. It handles file loading, data transformation, and account-specific data cleanup to ensure data integrity across multiple file imports. The workflow uses a two-step process: loading raw CSV data into MellonRawStaging, then transforming and inserting into MellonHoldings.
+- **Docker Network**: All containers communicate via `bor-network`
+- **Port Mapping**: External ports mapped to internal container ports
+- **Service Discovery**: Container names used for internal communication
 
-### Business Case
-- Mellon provides holdings data in CSV format for multiple accounts
-- Files are uploaded to the bor-files container via FTP
-- The workflow processes each file using a two-step approach:
-  1. Load raw CSV data into borarch.MellonRawStaging (all VARCHAR fields)
-  2. Transform and insert data into borarch.MellonHoldings (typed fields)
-- Account-specific cleanup ensures no duplicate or stale data for the same account and date
-- Data is made available for further processing and analysis
+### Data Security
 
-### Technical Components
+- **File Permissions**: Output files have appropriate permissions
+- **Database Access**: Limited database user permissions
+- **API Authentication**: All API calls require valid JWT tokens
 
-#### 1. Tasks
-- `delete_existing_account_data`: Deletes existing records for accounts and dates found in the incoming file
-  - Input: file_path (str), db_config (dict)
-  - Output: bool
-  - Purpose: Ensures clean data by removing old records for the same account and date combination
+## Troubleshooting
 
-- `update_file_tracking`: Updates the MellonFileImport tracking table
-  - Input: file_source (str), db_config (dict)
-  - Output: bool
-  - Purpose: Records file import attempts and status
+### Common Issues
 
-- `load_data_to_staging`: Inherited from BaseIngestionWorkflow, loads CSV data using 'LOAD DATA INFILE'
-  - Input: file_path, database connection parameters, field mappings, transformations
-  - Output: bool
-  - Retries: 3 attempts, 60-second delay
-  - Purpose: Loads raw CSV data into MellonRawStaging (all VARCHAR fields)
+1. **"Authentication required"**: Missing or invalid JWT token
+2. **"Connection refused"**: bor-api not running or wrong port
+3. **"File not found"**: Input files missing or wrong path
+4. **"Permission denied"**: File system or database permission issues
 
-- `update_filesource_for_loaded_data`: Updates FileSource column in MellonRawStaging
-  - Input: file_source (str), db_config (dict)
-  - Output: bool
-  - Purpose: Sets FileSource for all rows loaded from a specific file
+### Resolution Steps
 
-- `transform_loaded_data`: Transforms data from MellonRawStaging to MellonHoldings
-  - Input: file_source (str), db_config (dict)
-  - Output: bool
-  - Purpose: Performs data type conversions and cleaning via INSERT...SELECT
+1. **Verify Environment**: Check all required environment variables
+2. **Test Connectivity**: Verify container network communication
+3. **Check Logs**: Review Prefect and container logs for errors
+4. **Validate Configuration**: Ensure deployment parameters are correct
 
-- `run_mellon_integration_proc`: Runs the Mellon holdings integration stored procedure
-  - Input: db_config (dict)
-  - Output: bool
-  - Purpose: Executes usp_mellon_hold_integrate(1, 'FULL_INTEGRATION', NULL, NULL, NULL, NULL) in bormeta database
-  - Database: Connects to bormeta database (not borarch)
-  - Features: Handles stored procedure results, error handling, connection cleanup
+## Future Enhancements
 
-#### 2. Flow
-- Name: "mellon-holdings-etl"
-- Entry Point: mellon_holdings_etl_flow()
-- Parameters:
-  - source_files (list): List of source file paths (already in container)
-  - db_host (str, default="bor-db"): Database hostname
-  - db_port (str, default="3306"): Database port
-  - db_user (str): Database username
-  - db_password (str): Database password
-  - db_name (str, default="borarch"): Database name
-  - target_dir (str, default="/var/lib/mysql-files/ftpetl/incoming/"): Target directory
-  - delimiter (str, default=","): Field delimiter
-  - quote_char (str, default='"'"): Quote character
-  - line_terminator (str, default="\n"): Line terminator
-  - skip_lines (int, default=1): Number of header lines to skip
-  - truncate_before_load (bool, default=False): Whether to truncate table before loading
+### Planned Features
 
-#### 3.a. Dependencies external
-- Python 3.11+
-- Prefect
-- mysql-connector-python
-- python-dotenv
-- csv (standard library)
+1. **Additional Workflows**: More ETL and data processing workflows
+2. **Enhanced Monitoring**: Integration with external monitoring systems
+3. **Advanced Scheduling**: Complex scheduling and dependency management
+4. **Data Validation**: Comprehensive data quality checks
 
-#### 3.b. Dependencies workflows
-- BaseIngestionWorkflow (src/utils/base_ingestion.py)
+### Integration Opportunities
 
-#### 4. Environment Variables
-Required:
-- DB_HOST: Database hostname
-- DB_PORT: Database port
-- DB_USER: Database username
-- DB_PASSWORD: Database password
-- DB_NAME: Database name
-
-#### 5. File System Requirements
-- Access to bor-files-data volume
-- Mount point: /var/lib/mysql-files/ftpetl/incoming/
-- Directory structure:
-  ```
-  /var/lib/mysql-files/ftpetl/incoming/
-  ├── mellon-*.csv    # Mellon holdings files
-  ```
-
-#### 6. Database Requirements
-- MySQL 8.0+
-- Databases: borarch, bormeta
-
-**Tables:**
-- `borarch.MellonRawStaging`: Intermediate staging table for raw CSV data
-  - Primary key: id (AUTO_INCREMENT)
-  - All fields: VARCHAR(255) - stores raw CSV data before transformation
-  - Key fields: AccountNumber, MellonSecurityId, AsOfDate, FileSource
-  - Purpose: Holds raw CSV data before type conversion and cleaning
-
-- `borarch.MellonHoldings`: Final processed data table
-  - Primary key: id (AUTO_INCREMENT)
-  - Key fields: AccountNumber, MellonSecurityId, AsOfDate, FileSource
-  - Data types: VARCHAR(20-200), DECIMAL(10-20,2-6), DATE, DATETIME, INT
-  - Indexes: idx_account (AccountNumber), idx_security (MellonSecurityId), idx_date (AsOfDate), idx_processed (Processed), idx_file_source (FileSource)
-  - Purpose: Final destination for processed holdings data
-
-- `borarch.MellonFileImport`: File import tracking table
-  - Primary key: id (AUTO_INCREMENT)
-  - Unique key: FileName
-  - Fields: FileName, FileSize, ImportDate, RecordsImported, RecordsProcessed, Status, ErrorMessage, ProcessingDate
-  - Status enum: 'IMPORTED', 'PROCESSED', 'ERROR'
-  - Indexes: idx_filename (FileName), idx_status (Status), idx_import_date (ImportDate)
-
-**Stored Procedures:**
-- `borarch.usp_MellonHoldings_Load`: Loads Mellon holdings CSV file into staging table
-  - Parameters: p_FilePath (VARCHAR(255)), p_FileSource (VARCHAR(100))
-  - Purpose: Alternative method for loading data using LOAD DATA INFILE
-  - Usage: CALL usp_MellonHoldings_Load('incoming/mellon-file.csv', 'mellon-file.csv')
-  - Features: File tracking, data transformation, error handling
-
-- `borarch.usp_MellonRawHoldings_Load`: Loads raw CSV data for debugging
-  - Parameters: p_FilePath (VARCHAR(255))
-  - Purpose: Loads raw CSV lines into MellonRawStaging table
-  - Usage: CALL usp_MellonRawHoldings_Load('ftpetl/incoming/mellon-file.csv')
-
-- `bormeta.usp_mellon_hold_integrate`: Integration procedure for Mellon holdings data
-  - Parameters: p_AccountId (INT), p_IntegrationType (VARCHAR(50)), p_StartDate (DATE), p_EndDate (DATE), p_AccountNumber (VARCHAR(50)), p_SecurityId (VARCHAR(50))
-  - Purpose: Integrates Mellon holdings data with other system data
-  - Usage: CALL usp_mellon_hold_integrate(1, 'FULL_INTEGRATION', NULL, NULL, NULL, NULL)
-  - Features: Data integration, validation, and processing
-
-**User permissions required:**
-- FILE privilege for bulk loading
-- DELETE privilege for account cleanup
-- INSERT/UPDATE privileges on all Mellon tables
-- EXECUTE privilege on stored procedures
-- Access to both borarch and bormeta databases
-
-### Implementation Steps
-1. Create workflow file (src/workflows/mellon_holdings_etl.py)
-2. Implement account-specific deletion task
-3. Implement file tracking task
-4. Create main flow with parameter validation
-5. Add field mappings and transformations for data cleaning
-6. Configure deployment in prefect.yaml
-7. Add comprehensive testing
-
-### Testing
-Location: tests/data/ (sample files)
-Test Cases:
-1. Single file processing
-2. Multiple file processing
-3. Account-specific data cleanup
-4. Data transformation validation
-5. File tracking verification
-6. Integration procedure execution
-
-### Error Handling
-- File existence verification
-- Database connection retries
-- Account-specific deletion errors
-- Data transformation errors
-- File tracking errors
-- Integration procedure execution errors
-
-### Monitoring
-- Task execution status
-- File processing success/failure
-- Account cleanup operations
-- Data transformation results
-- Integration procedure execution results
-- Error logging
-
-### Security Considerations
-- Non-root user execution
-- Secure credential handling
-- Database access control
-- File permission management
-
-### Performance Considerations
-- Account-specific deletion optimization
-- Data transformation efficiency
-- Database connection pooling
-- Batch processing for multiple files
-
-### Maintenance
-- Regular log review
-- Error pattern monitoring
-- Performance metrics tracking
-- Data quality validation
-
-### Future Enhancements
-1. Data validation before processing
-2. Archive management
-3. Notification system
-4. Performance optimization
-5. Enhanced error reporting
-6. Data quality metrics
-
-## mellon_holdings_etl.py ################################################################################## end
-
-## factset_out_hold.py ################################################################################## start
-
-### Overview
-The Factset Out Holdings Workflow retrieves holdings data from the API and creates output files for external systems. This workflow works in reverse 
-compared to ingestion workflows - it produces files instead of consuming them.
-
-### Business Case
-- External systems need holdings data in specific file formats
-- Data is retrieved from the bor-api endpoint or database stored procedures
-- Files are created in the outgoing directory for external consumption
-- Supports multiple output formats (tab-delimited, pipe-delimited, etc.)
-- Can be triggered on-demand via bor-api endpoints for integration with bor-app
-
-### Technical Components
-
-#### 1. Tasks
-- `fetch_holdings_data`: Retrieves holdings data from the API endpoint
-  - Input: date_valid (str), port_id (Optional[int]), api_host (str), api_port (int)
-  - Output: List[Dict] - Holdings records
-  - API Endpoint: http://bor-api:4410/data/factset-holdings
-  - Parameters: dateValId, portId (optional)
-
-- `write_holdings_file`: Writes holdings data to a delimited text file
-  - Input: holdings_data (List[Dict]), output_path (str), delimiter (str), include_header (bool)
-  - Output: bool
-  - Supports various delimiters (tab, pipe, comma)
-  - Includes optional headers
-
-#### 2. Flow
-- Name: "Factset Out Holdings"
-- Entry Point: factset_out_hold_flow()
-- Parameters:
-  - date_valid (str): Date in YYYY-MM-DD format
-  - port_id (Optional[int]): Optional portfolio ID to filter by
-  - file_name (Optional[str]): Output filename (if None, auto-generated)
-  - delimiter (str, default="\t"): Field delimiter character
-  - output_dir (str, default="/var/lib/mysql-files/ftpetl/outgoing/"): Output directory path
-  - api_host (str, default="bor-api"): API hostname
-  - api_port (int, default=4410): API port
-
-#### 3.a. Dependencies external
-- Python 3.11+
-- Prefect
-- requests (for API calls)
-- csv (for file writing)
-
-#### 3.b. Dependencies workflows
-n/a
-
-#### 4. Environment Variables
-Required:
-- API_HOST: API server hostname (default: bor-api)
-- API_PORT: API server port (default: 4410)
-
-#### 5. File System Requirements
-- Access to bor-files-data volume
-- Directory structure:
-  ```
-  /var/lib/mysql-files/ftpetl/
-  ├── incoming/    # Input files
-  ├── outgoing/    # Output files (created by this workflow)
-  ├── processed/   # Processed files
-  └── archive/     # Archived files
-  ```
-
-#### 6. Database Requirements
-- Optional: Can use stored procedure borinst.usp_FactsetOutHold as alternative to API
-- API endpoint: /data/factset-holdings
-
-### External Integration (bor-api/bor-app)
-
-#### 1. Workflow Triggering via bor-api
-The workflow can be triggered from external systems through bor-api endpoints:
-
-**Endpoint**: `POST /api/workflows/factset-out-hold/trigger`
-
-**Request Format**:
-```json
-{
-  "date_valid": "2025-04-14",
-  "port_id": 1,
-  "file_name": "custom_holdings.txt",
-  "delimiter": "\t",
-  "output_dir": "/var/lib/mysql-files/ftpetl/outgoing/",
-  "api_host": "bor-api",
-  "api_port": 4410
-}
-```
-
-**Response Format**:
-```json
-{
-  "success": true,
-  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
-  "flow_run_name": "splendid-bobcat",
-  "status": "SCHEDULED",
-  "message": "Workflow triggered successfully"
-}
-```
-
-#### 2. Workflow Status Monitoring
-Monitor workflow execution status via bor-api:
-
-**Endpoint**: `GET /api/workflows/factset-out-hold/status/{flow_run_id}`
-
-**Response Format**:
-```json
-{
-  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
-  "flow_run_name": "splendid-bobcat",
-  "status": "COMPLETED",
-  "start_time": "2025-07-28T03:53:02.000Z",
-  "end_time": "2025-07-28T03:53:06.000Z",
-  "duration_seconds": 4,
-  "file_created": "holdings_yyyymmdd.txt",
-  "file_size_bytes": 81047,
-  "records_processed": 368,
-  "error_message": null
-}
-```
-
-#### 3. Workflow Logs Retrieval
-Get detailed execution logs:
-
-**Endpoint**: `GET /api/workflows/factset-out-hold/logs/{flow_run_id}`
-
-**Response Format**:
-```json
-{
-  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
-  "logs": [
-    {
-      "timestamp": "2025-07-28T03:53:05.720Z",
-      "level": "INFO",
-      "message": "Beginning flow run 'splendid-bobcat' for flow 'factset-out-hold'"
-    },
-    {
-      "timestamp": "2025-07-28T03:53:06.016Z",
-      "level": "INFO", 
-      "message": "Successfully wrote 368 records to /var/lib/mysql-files/ftpetl/outgoing/holdings_yyyymmdd.txt"
-    }
-  ]
-}
-```
-
-#### 4. File Output Access
-Access generated files via bor-api:
-
-**Endpoint**: `GET /api/workflows/factset-out-hold/files/{flow_run_id}`
-
-**Response Format**:
-```json
-{
-  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
-  "files": [
-    {
-      "filename": "holdings_yyyymmdd.txt",
-      "path": "/var/lib/mysql-files/ftpetl/outgoing/holdings_yyyymmdd.txt",
-      "size_bytes": 81047,
-      "created_at": "2025-07-28T03:53:06.000Z",
-      "download_url": "/api/workflows/factset-out-hold/download/holdings_yyyymmdd.txt"
-    }
-  ]
-}
-```
-
-#### 5. Direct CLI Execution (External Systems)
-For direct execution from external systems without bor-api:
-
-**Command Format**:
-```bash
-docker exec -it bor-workflow prefect deployment run 'factset-out-hold/Factset Out Holdings' \
-  --params '{
-    "date_valid": "2025-04-14",
-    "port_id": 1,
-    "file_name": "custom_holdings.txt",
-    "delimiter": "|",
-    "output_dir": "/var/lib/mysql-files/ftpetl/outgoing/",
-    "api_host": "bor-api",
-    "api_port": 4410
-  }'
-```
-
-**Parameter Validation**:
-- `date_valid`: Required, format YYYY-MM-DD
-- `port_id`: Optional integer, filters by portfolio ID
-- `file_name`: Optional string, defaults to "holdings_yyyymmdd.txt"
-- `delimiter`: Optional string, defaults to "\t" (tab)
-- `output_dir`: Optional string, defaults to "/var/lib/mysql-files/ftpetl/outgoing/"
-- `api_host`: Optional string, defaults to "bor-api"
-- `api_port`: Optional integer, defaults to 4410
-
-#### 6. Status Codes and Error Handling
-**Workflow Status Values**:
-- `SCHEDULED`: Workflow queued for execution
-- `RUNNING`: Workflow currently executing
-- `COMPLETED`: Workflow finished successfully
-- `FAILED`: Workflow failed with errors
-- `CANCELLED`: Workflow was cancelled
-
-**Error Response Format**:
-```json
-{
-  "success": false,
-  "error": "Connection refused to bor-api:4410",
-  "flow_run_id": "0745d5e3-91e0-459d-b0b9-e91822426b6c",
-  "status": "FAILED",
-  "retryable": true
-}
-```
-
-#### 7. Integration with bor-app
-The bor-app container can integrate with this workflow using:
-
-**JavaScript/TypeScript Example**:
-```typescript
-// Trigger workflow
-const triggerResponse = await fetch('/api/workflows/factset-out-hold/trigger', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    date_valid: '2025-04-14',
-    port_id: 1,
-    file_name: 'holdings_20250414_port1.txt'
-  })
-});
-
-const { flow_run_id } = await triggerResponse.json();
-
-// Monitor status
-const checkStatus = async () => {
-  const statusResponse = await fetch(`/api/workflows/factset-out-hold/status/${flow_run_id}`);
-  const status = await statusResponse.json();
-  
-  if (status.status === 'COMPLETED') {
-    console.log(`File created: ${status.file_created}`);
-    console.log(`Records processed: ${status.records_processed}`);
-  } else if (status.status === 'FAILED') {
-    console.error(`Workflow failed: ${status.error_message}`);
-  } else {
-    // Still running, check again in 5 seconds
-    setTimeout(checkStatus, 5000);
-  }
-};
-
-checkStatus();
-```
-
-### Implementation Steps
-1. Create workflow file (src/workflows/factset_out_hold.py)
-2. Implement API data fetching with error handling
-3. Create file writing functionality with configurable delimiters
-4. Add directory creation and validation
-5. Implement auto-filename generation
-6. Add comprehensive testing
-7. Create bor-api endpoints for external integration
-8. Implement status monitoring and file access APIs
-
-### Testing
-Location: tests/test_factset_out_hold.py
-Test Cases:
-1. API connection failure scenario
-2. File writing with different delimiters
-3. Directory creation and permissions
-4. Auto-filename generation
-5. External API integration testing
-6. Status monitoring validation
-
-### Usage Examples
-
-#### Via Prefect UI
-```bash
-# Run with default parameters (tab-delimited, auto filename)
-prefect deployment run 'factset-out-hold/Factset Out Holdings'
-
-# Run with custom parameters
-prefect deployment run 'factset-out-hold/Factset Out Holdings' \
-  --params '{"date_valid": "2025-04-14", "port_id": 1, "delimiter": "|"}'
-```
-
-#### Via bor-api (External Systems)
-```bash
-# Trigger workflow
-curl -X POST http://localhost:4410/api/workflows/factset-out-hold/trigger \
-  -H "Content-Type: application/json" \
-  -d '{
-    "date_valid": "2025-04-14",
-    "port_id": 1,
-    "file_name": "holdings_20250414_port1.txt"
-  }'
-
-# Check status
-curl http://localhost:4410/api/workflows/factset-out-hold/status/{flow_run_id}
-
-# Download file
-curl http://localhost:4410/api/workflows/factset-out-hold/download/holdings_20250414_port1.txt
-```
-
-#### Via Docker CLI (Direct)
-```bash
-# Run workflow directly
-docker exec -it bor-workflow prefect deployment run 'factset-out-hold/Factset Out Holdings' \
-  --params '{"date_valid": "2025-04-14", "port_id": 1}'
-
-# Check flow run status
-docker exec -it bor-workflow prefect flow-run ls --limit 5
-
-# Get detailed logs
-docker exec -it bor-workflow prefect flow-run logs {flow_run_id}
-```
-
-### Output File Format
-The workflow creates delimited text files with the following characteristics:
-- Configurable delimiter (tab, pipe, comma, etc.)
-- Optional header row
-- UTF-8 encoding
-- Standard CSV quoting rules
-- Auto-generated filenames: `factset-holdings_YYYY-MM-DD[_portN].txt`
-- Persistent storage in `/var/lib/mysql-files/ftpetl/outgoing/`
-
-### Security Considerations
-- API authentication for external triggers
-- File access permissions
-- Network security for inter-container communication
-- Input validation for all parameters
-
-### Performance Considerations
-- Asynchronous workflow execution
-- File size monitoring
-- Memory usage optimization
-- Network timeout handling
-
-### Monitoring and Alerting
-- Workflow execution metrics
-- File creation success/failure rates
-- API response times
-- Error pattern detection
-- Resource usage monitoring
+1. **External APIs**: Integration with additional data sources
+2. **Notification Systems**: Email/SMS alerts for workflow completion
+3. **Data Warehousing**: Integration with data warehouse systems
+4. **Reporting**: Automated report generation and distribution
