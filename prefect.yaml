@@ -30,7 +30,7 @@ deployments:
       date_valid: "2025-04-14"
       port_id: null
       file_name: "holdings_yyyymmdd.txt"
-      delimiter: "\t"
+      delimiter: "|"
       output_dir: "/var/lib/mysql-files/ftpetl/outgoing/"
       api_host: "bor-api"
       api_port: "{{ $API_PORT }}"

@@ -525,7 +525,7 @@ docker exec -it bor-workflow prefect deployment run 'factset-out-hold/Factset Ou
     "date_valid": "2025-04-14",
     "port_id": 1,
     "file_name": "custom_holdings.txt",
-    "delimiter": "\t",
+    "delimiter": "|",
     "output_dir": "/var/lib/mysql-files/ftpetl/outgoing/",
     "api_host": "bor-api",
     "api_port": 4410
