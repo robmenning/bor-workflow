@@ -177,6 +177,7 @@ def factset_out_hold_flow(
     port_id: Optional[int] = None,
     file_name: Optional[str] = None,
     delimiter: str = "|",
+    output_dir: str = "/var/lib/mysql-files/ftpetl/outgoing/",
     api_host: str = "bor-api",
     api_port: str = "4410"  # Default for dev, overridden by deployment
 ) -> str:
@@ -188,6 +189,7 @@ def factset_out_hold_flow(
         port_id: Optional portfolio ID to filter by
         file_name: Output filename (if None, auto-generated)
         delimiter: Field delimiter for output file
+        output_dir: Output directory path
         api_host: bor-api hostname
         api_port: bor-api port number
     
@@ -202,6 +204,7 @@ def factset_out_hold_flow(
     logger.info("Starting Factset Out Holdings Flow")
     logger.info(f"Date: {date_valid}")
     logger.info(f"Port ID: {port_id}")
+    logger.info(f"Output directory: {output_dir}")
     logger.info(f"Delimiter: '{delimiter}' (type: {type(delimiter)}, length: {len(delimiter)})")
     
     # Step 1: Fetch holdings data from API
@@ -221,7 +224,7 @@ def factset_out_hold_flow(
         file_name = f"holdings_{date_str}.txt"
     
     # Step 3: Write the file
-    output_path = f"/var/lib/mysql-files/ftpetl/outgoing/{file_name}"
+    output_path = os.path.join(output_dir, file_name)
     logger.info(f"Step 2: Writing file to {output_path}")
     
     success = write_holdings_file(
