@@ -33,4 +33,4 @@ deployments:
       delimiter: "\t"
       output_dir: "/var/lib/mysql-files/ftpetl/outgoing/"
       api_host: "bor-api"
-      api_port: 4410
+      api_port: "{{ $API_PORT }}"
