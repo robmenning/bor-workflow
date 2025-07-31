@@ -130,19 +130,34 @@ def delete_existing_account_data(file_path: str, db_config: dict) -> bool:
         
         # Read the file to get account numbers and dates
         account_date_pairs = set()
-        with open(file_path, 'r', encoding='utf-8') as file:
+        print(f"Reading file: {file_path}")
+        
+        with open(file_path, 'r', encoding='utf-8-sig') as file:  # utf-8-sig handles BOM
             csv_reader = csv.DictReader(file)
-            for row in csv_reader:
-                if ('Account Number' in row and row['Account Number'].strip() and 
-                    'As-Of Date' in row and row['As-Of Date'].strip()):
-                    account_number = row['Account Number'].strip()
-                    as_of_date = row['As-Of Date'].strip()
+            print(f"CSV headers: {csv_reader.fieldnames}")
+            
+            for row_num, row in enumerate(csv_reader, 1):
+                # Handle BOM in column names by stripping it
+                account_number_key = 'Account Number'
+                as_of_date_key = 'As-Of Date'
+                
+                # Check if BOM is present in the first column name
+                if csv_reader.fieldnames and csv_reader.fieldnames[0].startswith('\ufeff'):
+                    account_number_key = '\ufeffAccount Number'
+                
+                if (account_number_key in row and row[account_number_key].strip() and 
+                    as_of_date_key in row and row[as_of_date_key].strip()):
+                    account_number = row[account_number_key].strip()
+                    as_of_date = row[as_of_date_key].strip()
+                    
+                    print(f"Row {row_num}: Account='{account_number}', Date='{as_of_date}'")
                     
                     # Convert date from M/D/YYYY to YYYY-MM-DD format
                     try:
                         date_obj = datetime.strptime(as_of_date, '%m/%d/%Y')
                         formatted_date = date_obj.strftime('%Y-%m-%d')
                         account_date_pairs.add((account_number, formatted_date))
+                        print(f"  -> Parsed date: {formatted_date}")
                     except ValueError as e:
                         print(f"Warning: Could not parse date '{as_of_date}' for account {account_number}: {e}")
                         continue
@@ -167,6 +182,15 @@ def delete_existing_account_data(file_path: str, db_config: dict) -> bool:
         flat_params = []
         for account, date in account_date_pairs:
             flat_params.extend([account, date])
+        
+        # Log the delete statement and parameters for debugging
+        print("=" * 60)
+        print("------------------- DELETE STATEMENT ---------------------")
+        print(delete_sql)
+        print("------------------- PARAMETERS ---------------------")
+        print(f"Parameters: {flat_params}")
+        print(f"Account/Date pairs found: {list(account_date_pairs)}")
+        print("=" * 60)
         
         cursor.execute(delete_sql, flat_params)
         deleted_count = cursor.rowcount
