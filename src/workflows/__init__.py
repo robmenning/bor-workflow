@@ -19,8 +19,8 @@ def get_workflow(name: str) -> Type[Flow]:
 
 # Import and register workflows (optional imports)
 try:
-    from .mellon_holdings_etl import mellon_holdings_etl_flow
-    register_workflow("mellon-holdings-etl", mellon_holdings_etl_flow)
+from .mellon_holdings_etl import mellon_holdings_etl_flow
+register_workflow("mellon-holdings-etl", mellon_holdings_etl_flow) 
 except ImportError:
     pass
 

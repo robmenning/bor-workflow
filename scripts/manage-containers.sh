@@ -175,7 +175,7 @@ start_containers() {
     # Create necessary directories in the shared volume
     docker exec bor-workflow mkdir -p /data/imports
     docker exec bor-workflow chmod 777 /data/imports
-    
+
     # Create ftpetl directory structure for workflows
     docker exec bor-workflow mkdir -p /var/lib/mysql-files/ftpetl/outgoing
     docker exec bor-workflow mkdir -p /var/lib/mysql-files/ftpetl/incoming

@@ -22,6 +22,27 @@ deployments:
       line_terminator: "\n"
       skip_lines: 1
       truncate_before_load: false
+  - name: Mellon Duration ETL
+    entrypoint: src/workflows/mellon_duration_etl.py:mellon_duration_etl_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      source_files: [
+        "/var/lib/mysql-files/ftpetl/incoming/660600017Duration_Report.csv",
+        "/var/lib/mysql-files/ftpetl/incoming/660600027Duration_Report.csv", 
+        "/var/lib/mysql-files/ftpetl/incoming/660610007Duration_Report.csv"
+      ]
+      db_host: "{{ $DB_HOST }}"
+      db_port: "{{ $DB_PORT }}"
+      db_user: "{{ $DB_USER }}"
+      db_password: "{{ $DB_PASSWORD }}"
+      db_name: "{{ $DB_NAME }}"
+      target_dir: "/var/lib/mysql-files/ftpetl/incoming/"
+      delimiter: ","
+      quote_char: "\""
+      line_terminator: "\n"
+      skip_lines: 3
+      truncate_before_load: false
   - name: Factset Out Holdings
     entrypoint: src/workflows/factset_out_hold.py:factset_out_hold_flow
     work_pool:
