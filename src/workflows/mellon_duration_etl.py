@@ -9,8 +9,28 @@ import os
 import shutil
 import csv
 from pathlib import Path
+from datetime import datetime
 from prefect import flow, task
 from src.utils.base_ingestion import BaseIngestionWorkflow, load_data_to_staging, check_file_exists, execute_stored_procedure
+
+def convert_mellon_date_format(date_str: str) -> str:
+    """
+    Convert Mellon date format from 'dd-MMM-yy' to 'yyyy-mm-dd'.
+    
+    Args:
+        date_str: Date string in format 'dd-MMM-yy' (e.g., '14-Apr-25')
+        
+    Returns:
+        str: Date string in format 'yyyy-mm-dd' (e.g., '2025-04-14')
+    """
+    try:
+        # Parse the date string (e.g., '14-Apr-25')
+        parsed_date = datetime.strptime(date_str, '%d-%b-%y')
+        # Format as 'yyyy-mm-dd'
+        return parsed_date.strftime('%Y-%m-%d')
+    except ValueError as e:
+        print(f"WARNING: Could not parse date '{date_str}': {e}")
+        return date_str  # Keep original if parsing fails
 
 class MellonDurationETLWorkflow(BaseIngestionWorkflow):
     def __init__(self):
@@ -113,9 +133,10 @@ class MellonDurationETLWorkflow(BaseIngestionWorkflow):
                     if lines[0].startswith('#Account Name,'):
                         account_name = lines[0].split(',', 1)[1].strip()
                     
-                    # Parse Date from line 2: "#Date,14-Apr-25"
+                    # Parse Date from line 2: "#Date,14-Apr-25" and convert to yyyy-mm-dd format
                     if lines[1].startswith('#Date,'):
-                        report_date = lines[1].split(',', 1)[1].strip()
+                        date_str = lines[1].split(',', 1)[1].strip()
+                        report_date = convert_mellon_date_format(date_str)
             
             if not account_name or not report_date:
                 raise Exception(f"Could not extract account name or date from file: {file_path}")
@@ -221,9 +242,10 @@ def delete_existing_account_data(file_path: str, db_config: dict) -> bool:
                 if lines[0].startswith('#Account Name,'):
                     account_name = lines[0].split(',', 1)[1].strip()
                 
-                # Parse Date from line 2: "#Date,14-Apr-25"
+                # Parse Date from line 2: "#Date,14-Apr-25" and convert to yyyy-mm-dd format
                 if lines[1].startswith('#Date,'):
-                    report_date = lines[1].split(',', 1)[1].strip()
+                    date_str = lines[1].split(',', 1)[1].strip()
+                    report_date = convert_mellon_date_format(date_str)
         
         if not account_name or not report_date:
             print(f"ERROR: Could not extract account name or date from file: {file_path}")
@@ -440,21 +462,57 @@ def transform_loaded_data(file_source: str, db_config: dict) -> bool:
         return False
 
 @task(name="run-mellon-duration-integration-proc")
-def run_mellon_duration_integration_proc(db_config: dict) -> bool:
+def run_mellon_duration_integration_proc(db_config: dict, user_id: int = 1) -> bool:
     """
-    Run the Mellon Duration integration stored procedure (placeholder for now).
+    Run the Mellon Duration integration stored procedure.
     
     Args:
         db_config: Database configuration dictionary
+        user_id: User ID for the integration (default: 1)
         
     Returns:
         bool: True if successful, False otherwise
     """
     try:
-        print("INFO: Mellon Duration integration procedure - SKIPPED FOR NOW")
-        print("INFO: This is a placeholder for future integration logic")
-        return True
+        import mysql.connector
+        from mysql.connector import Error
         
+        print(f"INFO: Running Mellon Duration integration procedure with UserId: {user_id}")
+        
+        connection = mysql.connector.connect(
+            host=db_config['host'],
+            port=db_config['port'],
+            user=db_config['user'],
+            password=db_config['password'],
+            database='bormeta'  # The stored procedure is in bormeta database
+        )
+        
+        if connection.is_connected():
+            cursor = connection.cursor()
+            
+            # Execute the stored procedure using the same pattern as mellon_holdings_etl
+            cursor.callproc('usp_mellon_duration_integrate', (user_id,))
+            
+            # Fetch any results if the procedure returns them
+            for result in cursor.stored_results():
+                if result:
+                    rows = result.fetchall()
+                    print(f"Stored procedure returned {len(rows)} result rows")
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+            print("INFO: Mellon Duration integration procedure completed successfully")
+            return True
+            
+        else:
+            print("ERROR: Could not connect to database")
+            return False
+            
+    except Error as e:
+        print(f"ERROR: Database error during integration procedure: {e}")
+        return False
     except Exception as e:
         print(f"ERROR: Unexpected error during integration procedure: {e}")
         return False
@@ -472,7 +530,8 @@ def mellon_duration_etl_flow(
     quote_char: str = '"',
     line_terminator: str = '\n',
     skip_lines: int = 3,  # Skip two header rows + column header
-    truncate_before_load: bool = False
+    truncate_before_load: bool = False,
+    user_id: int = 1
 ) -> bool:
     """
     Main flow for Mellon Duration ETL processing.
@@ -490,6 +549,7 @@ def mellon_duration_etl_flow(
         line_terminator: Line terminator character
         skip_lines: Number of header lines to skip
         truncate_before_load: Boolean indicating whether to truncate the table before loading
+        user_id: User ID for the integration procedure (default: 1)
         
     Returns:
         bool: True if all files processed successfully, False otherwise
@@ -561,12 +621,6 @@ def mellon_duration_etl_flow(
                 error_count += 1
                 continue
             
-            # Step 6: Run integration procedure (placeholder)
-            if not run_mellon_duration_integration_proc(db_config):
-                print(f"ERROR: Failed to run integration procedure for {file_path}")
-                error_count += 1
-                continue
-            
             print(f"INFO: Successfully processed {file_path}")
             success_count += 1
             
@@ -578,6 +632,17 @@ def mellon_duration_etl_flow(
     print(f"INFO: Mellon Duration ETL flow completed")
     print(f"INFO: Successfully processed: {success_count} files")
     print(f"INFO: Failed to process: {error_count} files")
+    
+    # Step 6: Run integration procedure as the final task
+    if success_count > 0:
+        print("INFO: Running Mellon Duration integration procedure as final task...")
+        if not run_mellon_duration_integration_proc(db_config, user_id=user_id):
+            print("ERROR: Failed to run integration procedure")
+            return False
+        else:
+            print("INFO: Integration procedure completed successfully")
+    else:
+        print("INFO: No files processed successfully, skipping integration procedure")
     
     return error_count == 0
 
@@ -621,7 +686,8 @@ class DynamicMellonDurationWorkflow(BaseIngestionWorkflow):
                 "MonthsToMaturity": "CASE WHEN TRIM(@`Months to Maturity`) = '' OR TRIM(@`Months to Maturity`) = ' ' OR TRIM(@`Months to Maturity`) = '-' OR TRIM(@`Months to Maturity`) = '0' THEN NULL ELSE CAST(TRIM(@`Months to Maturity`) AS SIGNED) END",
                 "DaysToMaturity": "CASE WHEN TRIM(@`Days to Maturity`) = '' OR TRIM(@`Days to Maturity`) = ' ' OR TRIM(@`Days to Maturity`) = '-' OR TRIM(@`Days to Maturity`) = '0' THEN NULL ELSE CAST(TRIM(@`Days to Maturity`) AS SIGNED) END",
                 "FileSource": "'mellon_duration_default'"
-            }
+            },
+            procedure_name=None  # Disable automatic stored procedure call
         )
     
     def execute(
@@ -683,9 +749,10 @@ class DynamicMellonDurationWorkflow(BaseIngestionWorkflow):
                     if lines[0].startswith('#Account Name,'):
                         account_name = lines[0].split(',', 1)[1].strip()
                     
-                    # Parse Date from line 2: "#Date,14-Apr-25"
+                    # Parse Date from line 2: "#Date,14-Apr-25" and convert to yyyy-mm-dd format
                     if lines[1].startswith('#Date,'):
-                        report_date = lines[1].split(',', 1)[1].strip()
+                        date_str = lines[1].split(',', 1)[1].strip()
+                        report_date = convert_mellon_date_format(date_str)
             
             if not account_name or not report_date:
                 raise Exception(f"Could not extract account name or date from file: {file_path}")
