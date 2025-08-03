@@ -17,9 +17,15 @@ def get_workflow(name: str) -> Type[Flow]:
         raise KeyError(f"Workflow '{name}' not found in registry")
     return WORKFLOW_REGISTRY[name]
 
-# Import and register workflows
-from .import_web_classfees import import_web_classfees_flow
-register_workflow("import_web_classfees", import_web_classfees_flow)
-
+# Import and register workflows (optional imports)
+try:
 from .mellon_holdings_etl import mellon_holdings_etl_flow
 register_workflow("mellon-holdings-etl", mellon_holdings_etl_flow) 
+except ImportError:
+    pass
+
+try:
+    from .factset_out_hold import factset_out_hold_flow
+    register_workflow("factset-out-hold", factset_out_hold_flow)
+except ImportError:
+    pass 

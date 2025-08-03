@@ -174,9 +174,14 @@ scp bor-workflow/.env* robmenning.com@xenodochial-turing.108-175-7-118.plesk.pag
 
 # DEV ITERATIONS
 
-## deploying to the Prefect server (locally, on container)
-./scripts/deploy-wf.sh
+clear; ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear; ./scripts/manage-containers.sh start dev; docker ps; sleep 4; docker logs bor-workflow #bor-workflow
 
+
+## deploying to the Prefect server (locally, on container)
+./scripts/deploy-wf.sh [dev | prod]
+
+## be sure to copy env files to prod !!!!!!!!!!!!!!!!!!!!!!!!!
+can use ./scripts/put-env-prod.sh
 
 DEV:
 1. clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; ./scripts/manage-containers.sh clear;  ./scripts/manage-containers.sh start dev; docker ps;
@@ -186,6 +191,15 @@ clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; 
 
 # deploy all workflows
 docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
+
+
+/home/rmenning/git/bor-workflow/tests/data/660600017Duration_Report.csv
+/home/rmenning/git/bor-workflow/tests/data/660600027Duration_Report.csv
+/home/rmenning/git/bor-workflow/tests/data/660610007Duration_Report.csv
+
+docker cp tests/data/660600017Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660600017Duration_Report.csv
+docker cp tests/data/660600027Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660600027Duration_Report.csv
+docker cp tests/data/660610007Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660610007Duration_Report.csv
 
 # to copy a file into the volume accessible by bor-db: 
 docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv

@@ -1,5 +1,11 @@
 # Prefect Workflow Debugging Guide
 
+# to remove the deployments:
+<!-- 
+docker exec bor-workflow prefect deployment delete "import-web-classfees-flow/Import web classfees"
+docker exec bor-workflow prefect deployment delete "import-web-hold-flow/Import web hold" 
+-->
+
 ## Git History Cleanup (for secrets)
 
 ### Method 1: Soft Reset (Quick)
@@ -118,6 +124,7 @@ docker exec -it bor-db mysql -u borETLSvc -pu67nomZyNg -e "USE borarch; SELECT *
 
 ### Copy Test Files to Container
 ```bash
+# cd to workflow
 docker cp tests/data/mellon-660600017-AAD-20250414.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/
 docker cp tests/data/mellon-660600027-AAD-20250414.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/
 docker cp tests/data/mellon-660610007-AAD-20250414.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/

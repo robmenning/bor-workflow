@@ -1,9 +1,11 @@
 # dotenv environment variable files
 # .env
 .env.dev.local
+.env.development
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 .env.local
 
 # Python virtual environment
@@ -151,3 +153,6 @@ dist
 
 # Environment files with secrets
 envs.txt
+
+# pdfs
+*.pdf
