@@ -192,6 +192,15 @@ clear; echo "------------------ $(date)";  ./scripts/manage-containers.sh stop; 
 # deploy all workflows
 docker exec -it bor-workflow prefect deploy --all (20250525: included in 'manage-containers.sh start')
 
+
+/home/rmenning/git/bor-workflow/tests/data/660600017Duration_Report.csv
+/home/rmenning/git/bor-workflow/tests/data/660600027Duration_Report.csv
+/home/rmenning/git/bor-workflow/tests/data/660610007Duration_Report.csv
+
+docker cp tests/data/660600017Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660600017Duration_Report.csv
+docker cp tests/data/660600027Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660600027Duration_Report.csv
+docker cp tests/data/660610007Duration_Report.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/660610007Duration_Report.csv
+
 # to copy a file into the volume accessible by bor-db: 
 docker cp tests/data/holdweb-20241231.csv bor-db:/var/lib/mysql-files/ftpetl/incoming/holdweb-20241231.csv
 # Check if the file exists in the expected location
